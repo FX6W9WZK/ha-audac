@@ -2,3 +2,16 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Development files (not needed for HACS)
+dist/
+src/
+preview/
+server.js
+package.json
+replit.md
+.replit
+attached_assets/
+.cache/
+.local/
+.agents/
