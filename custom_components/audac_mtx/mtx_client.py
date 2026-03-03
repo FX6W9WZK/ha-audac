@@ -11,7 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
 RECONNECT_DELAY = 1.0
-INTER_COMMAND_DELAY = 0.05
+INTER_COMMAND_DELAY = 0.1
+MAX_READ_LINES = 10
 
 
 class MTXClient:
@@ -42,6 +43,7 @@ class MTXClient:
             )
             self._consecutive_failures = 0
             _LOGGER.debug("Connected to MTX at %s:%s", self._host, self._port)
+            await asyncio.sleep(0.2)
         except Exception as err:
             self._reader = None
             self._writer = None
@@ -68,44 +70,42 @@ class MTXClient:
     def _build_command(self, command: str, argument: str = "0") -> bytes:
         return f"#|X001|{self._source}|{command}|{argument}|U|\r\n".encode()
 
-    async def _drain_buffer(self) -> None:
-        if self._reader is None:
-            return
-        while True:
-            try:
-                data = await asyncio.wait_for(
-                    self._reader.read(4096),
-                    timeout=0.05,
-                )
-                if data:
-                    _LOGGER.debug("Drained stale data: %s", data.decode(errors="replace").strip()[:100])
-                else:
-                    break
-            except asyncio.TimeoutError:
-                break
-
-    async def _read_all_lines(self, timeout: float = 3.0) -> list[str]:
-        lines = []
+    async def _read_response(self, command: str, timeout: float = 3.0) -> str:
         deadline = asyncio.get_event_loop().time() + timeout
-        while True:
+        lines_read = 0
+
+        while lines_read < MAX_READ_LINES:
             remaining = deadline - asyncio.get_event_loop().time()
             if remaining <= 0:
                 break
             try:
                 line_bytes = await asyncio.wait_for(
                     self._reader.readline(),
-                    timeout=min(remaining, 0.5 if lines else timeout),
+                    timeout=remaining,
                 )
                 line = line_bytes.decode(errors="replace").strip()
-                if line:
-                    lines.append(line)
-                    if line.startswith("#|"):
+                lines_read += 1
+
+                if not line:
+                    if line_bytes == b"":
+                        _LOGGER.debug("EOF received from MTX")
                         break
+                    continue
+
+                if line.startswith("#|"):
+                    cmd_base = command.rstrip("0123456789") if len(command) > 3 else command
+                    if cmd_base in line or "+" in line or command in line:
+                        return line
+                    _LOGGER.debug("Skipping non-matching response: %s (expected cmd: %s)", line[:80], command)
+                    return line
                 else:
-                    break
+                    _LOGGER.debug("Skipping non-protocol line: %s", line[:80])
+                    continue
+
             except asyncio.TimeoutError:
                 break
-        return lines
+
+        return ""
 
     async def _send_and_receive(self, command: str, argument: str = "0", retries: int = MAX_RETRIES) -> str:
         async with self._lock:
@@ -120,26 +120,20 @@ class MTXClient:
 
                 raw = self._build_command(command, argument)
                 try:
-                    await self._drain_buffer()
-
                     self._writer.write(raw)
                     await self._writer.drain()
 
-                    lines = await self._read_all_lines(timeout=3.0)
+                    response = await self._read_response(command, timeout=3.0)
 
-                    if not lines:
+                    if not response:
                         _LOGGER.debug("No response for command %s, attempt %d", command, attempt)
                         if attempt < retries:
+                            await self.disconnect()
                             continue
                         return ""
 
-                    for line in reversed(lines):
-                        if line.startswith("#|"):
-                            self._consecutive_failures = 0
-                            return line
-
                     self._consecutive_failures = 0
-                    return lines[-1]
+                    return response
 
                 except (asyncio.TimeoutError, OSError, ConnectionError) as err:
                     _LOGGER.warning("Communication error with MTX for command %s (attempt %d): %s", command, attempt, err)
@@ -171,6 +165,7 @@ class MTXClient:
         resp = await self._send_and_receive(f"GZI0{zone}")
         data = self._parse_response(resp)
         if data is None:
+            _LOGGER.debug("No parseable data for zone %d, raw response: %s", zone, resp[:100] if resp else "(empty)")
             return {}
 
         values = data.split("^")
