@@ -9,11 +9,10 @@ from .const import DEFAULT_PORT, DEFAULT_SOURCE, INPUT_NAMES, BASS_TREBLE_MAP
 
 _LOGGER = logging.getLogger(__name__)
 
-MAX_RETRIES = 2
+MAX_RETRIES = 1
 RECONNECT_DELAY = 1.0
-INTER_COMMAND_DELAY = 0.15
-MAX_READ_LINES = 20
-DRAIN_TIMEOUT = 0.05
+INTER_COMMAND_DELAY = 0.12
+MAX_READ_LINES = 10
 
 
 class MTXClient:
@@ -44,7 +43,7 @@ class MTXClient:
             )
             self._consecutive_failures = 0
             _LOGGER.debug("Connected to MTX at %s:%s", self._host, self._port)
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.2)
             await self._drain_buffer()
         except Exception as err:
             self._reader = None
@@ -77,14 +76,13 @@ class MTXClient:
             try:
                 data = await asyncio.wait_for(
                     self._reader.readline(),
-                    timeout=DRAIN_TIMEOUT,
+                    timeout=0.05,
                 )
                 if data == b"":
                     break
                 drained += 1
-                line = data.decode(errors="replace").strip()
-                if line:
-                    _LOGGER.debug("Drained stale data: %s", line[:100])
+                if drained > 50:
+                    break
             except asyncio.TimeoutError:
                 break
         if drained:
@@ -93,25 +91,10 @@ class MTXClient:
     def _build_command(self, command: str, argument: str = "0") -> bytes:
         return f"#|X001|{self._source}|{command}|{argument}|U|\r\n".encode()
 
-    def _match_response(self, line: str, command: str) -> bool:
-        if not line.startswith("#|"):
-            return False
-        parts = line.split("|")
-        if len(parts) < 4:
-            return False
-        resp_cmd = parts[3]
-        if f"+{command}" == resp_cmd:
-            return True
-        if resp_cmd.startswith("+") and command in resp_cmd:
-            return True
-        cmd_base = command.rstrip("0123456789")
-        if resp_cmd.startswith("+") and cmd_base in resp_cmd:
-            return True
-        return False
-
-    async def _read_response(self, command: str, timeout: float = 3.0) -> str:
+    async def _read_response(self, command: str, timeout: float = 2.0) -> str:
         deadline = asyncio.get_event_loop().time() + timeout
         lines_read = 0
+        first_protocol_line = None
 
         while lines_read < MAX_READ_LINES:
             remaining = deadline - asyncio.get_event_loop().time()
@@ -120,7 +103,7 @@ class MTXClient:
             try:
                 line_bytes = await asyncio.wait_for(
                     self._reader.readline(),
-                    timeout=remaining,
+                    timeout=min(remaining, 1.5),
                 )
                 line = line_bytes.decode(errors="replace").strip()
                 lines_read += 1
@@ -132,19 +115,26 @@ class MTXClient:
                     continue
 
                 if not line.startswith("#|"):
-                    _LOGGER.debug("Skipping non-protocol line: %s", line[:80])
                     continue
 
-                if self._match_response(line, command):
-                    _LOGGER.debug("Matched response for %s: %s", command, line[:100])
-                    return line
+                _LOGGER.debug("MTX raw response: %s", line[:120])
 
-                _LOGGER.debug("Skipping non-matching response: %s (waiting for %s)", line[:80], command)
+                if first_protocol_line is None:
+                    first_protocol_line = line
+
+                parts = line.split("|")
+                if len(parts) >= 4:
+                    resp_cmd = parts[3]
+                    if command in resp_cmd or resp_cmd.lstrip("+").startswith(command[:3]):
+                        return line
 
             except asyncio.TimeoutError:
                 break
 
-        _LOGGER.debug("No matching response found for command %s after %d lines", command, lines_read)
+        if first_protocol_line:
+            _LOGGER.debug("No exact match for %s, using first protocol line: %s", command, first_protocol_line[:100])
+            return first_protocol_line
+
         return ""
 
     async def _send_and_receive(self, command: str, argument: str = "0", retries: int = MAX_RETRIES) -> str:
@@ -158,17 +148,12 @@ class MTXClient:
                         continue
                     raise
 
-                try:
-                    await self._drain_buffer()
-                except Exception:
-                    pass
-
                 raw = self._build_command(command, argument)
                 try:
                     self._writer.write(raw)
                     await self._writer.drain()
 
-                    response = await self._read_response(command, timeout=3.0)
+                    response = await self._read_response(command, timeout=2.0)
 
                     if not response:
                         _LOGGER.debug("No response for command %s, attempt %d", command, attempt)
@@ -204,27 +189,17 @@ class MTXClient:
         if not response:
             return False
         parts = response.split("|")
-        return len(parts) >= 4 and parts[3].startswith("+")
+        return len(parts) >= 4 and "+" in parts[3]
 
     async def get_zone_info(self, zone: int) -> dict[str, Any]:
         command = f"GZI0{zone}"
         resp = await self._send_and_receive(command)
 
-        if not resp:
-            _LOGGER.debug("No response for zone %d info request", zone)
+        data = self._parse_response(resp)
+        if data is None:
+            _LOGGER.debug("No parseable data for zone %d, raw response: %s", zone, resp[:100] if resp else "(empty)")
             return {}
 
-        parts = resp.split("|")
-        if len(parts) < 5:
-            _LOGGER.debug("Invalid response format for zone %d: %s", zone, resp[:100])
-            return {}
-
-        resp_cmd = parts[3] if len(parts) > 3 else ""
-        if f"0{zone}" not in resp_cmd and str(zone) not in resp_cmd:
-            _LOGGER.warning("Response zone mismatch for zone %d: cmd=%s, full=%s", zone, resp_cmd, resp[:100])
-            return {}
-
-        data = parts[4]
         values = data.split("^")
         if len(values) < 5:
             _LOGGER.warning("Unexpected zone info format for zone %d: %s (expected at least 5 fields, got %d)", zone, data, len(values))
@@ -243,8 +218,8 @@ class MTXClient:
         mute = mute_raw != 0
 
         _LOGGER.debug(
-            "Zone %d parsed: vol=%d routing=%d mute=%d(%s) bass=%d treble=%d",
-            zone, volume_raw, routing, mute_raw, mute, bass_raw, treble_raw,
+            "Zone %d: vol=%d routing=%d mute=%d(%s) bass=%d treble=%d raw='%s'",
+            zone, volume_raw, routing, mute_raw, mute, bass_raw, treble_raw, data[:60],
         )
 
         result = {
@@ -261,7 +236,6 @@ class MTXClient:
 
         if len(values) > 5:
             remote_inputs = values[5:]
-            _LOGGER.debug("Zone %d has additional fields: %s", zone, remote_inputs)
             result["remote_inputs"] = remote_inputs
 
         return result
