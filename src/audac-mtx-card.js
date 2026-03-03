@@ -780,41 +780,77 @@ class AudacMTXCardEditor extends HTMLElement {
           margin-bottom: 8px;
         }
         .checkbox-field input { width: auto; }
+        .section-title {
+          font-size: 13px;
+          font-weight: 700;
+          margin: 16px 0 8px;
+          padding-top: 12px;
+          border-top: 1px solid var(--divider-color, #ddd);
+          color: var(--primary-text-color, #333);
+        }
+        .section-title:first-of-type {
+          margin-top: 0;
+          padding-top: 0;
+          border-top: none;
+        }
+        .zone-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .zone-row input {
+          width: 100%;
+        }
+        .hint {
+          font-size: 11px;
+          color: var(--secondary-text-color, #888);
+          margin-bottom: 8px;
+        }
       </style>
       <div class="editor">
+        <div class="section-title">Allgemein</div>
         <div class="field">
-          <label>Title</label>
+          <label>Titel</label>
           <input type="text" id="title" value="${this._config.title || 'Audac MTX'}" />
         </div>
         <div class="field">
-          <label>Zones (entity IDs, one per line)</label>
-          <textarea id="zones">${(this._config.zones || []).join('\n')}</textarea>
-        </div>
-        <div class="field">
-          <label>Theme</label>
+          <label>Design</label>
           <select id="theme">
-            <option value="auto" ${this._config.theme === 'auto' ? 'selected' : ''}>Auto</option>
-            <option value="dark" ${this._config.theme === 'dark' ? 'selected' : ''}>Dark</option>
-            <option value="light" ${this._config.theme === 'light' ? 'selected' : ''}>Light</option>
+            <option value="auto" ${this._config.theme === 'auto' ? 'selected' : ''}>Automatisch</option>
+            <option value="dark" ${this._config.theme === 'dark' ? 'selected' : ''}>Dunkel</option>
+            <option value="light" ${this._config.theme === 'light' ? 'selected' : ''}>Hell</option>
           </select>
         </div>
         <div class="checkbox-field">
           <input type="checkbox" id="show_source" ${this._config.show_source !== false ? 'checked' : ''} />
-          <label for="show_source">Show Source Selection</label>
+          <label for="show_source">Quellenauswahl anzeigen</label>
         </div>
         <div class="checkbox-field">
           <input type="checkbox" id="show_bass_treble" ${this._config.show_bass_treble !== false ? 'checked' : ''} />
-          <label for="show_bass_treble">Show Bass / Treble</label>
+          <label for="show_bass_treble">Bass / Höhen anzeigen</label>
         </div>
+
+        <div class="section-title">Zonen</div>
+        <p class="hint">Entity-ID und optionaler Anzeigename pro Zone. Der Anzeigename überschreibt den friendly_name aus Home Assistant.</p>
+        ${this._renderZoneRows()}
+
+        <button class="btn-add" id="add-zone" style="
+          margin-top: 4px;
+          padding: 6px 14px;
+          border-radius: 8px;
+          border: 1px dashed var(--divider-color, #ccc);
+          background: transparent;
+          color: var(--primary-text-color, #333);
+          cursor: pointer;
+          font-size: 13px;
+          width: 100%;
+        ">+ Zone hinzufügen</button>
       </div>
     `;
 
     this.shadowRoot.getElementById("title").addEventListener("change", (e) => {
       this._config.title = e.target.value;
-      this._fireChanged();
-    });
-    this.shadowRoot.getElementById("zones").addEventListener("change", (e) => {
-      this._config.zones = e.target.value.split("\n").map(s => s.trim()).filter(Boolean);
       this._fireChanged();
     });
     this.shadowRoot.getElementById("theme").addEventListener("change", (e) => {
@@ -829,6 +865,65 @@ class AudacMTXCardEditor extends HTMLElement {
       this._config.show_bass_treble = e.target.checked;
       this._fireChanged();
     });
+    this.shadowRoot.getElementById("add-zone").addEventListener("click", () => {
+      if (!this._config.zones) this._config.zones = [];
+      this._config.zones.push({ entity: "", name: "" });
+      this._render();
+    });
+    this.shadowRoot.querySelectorAll("[data-zone-entity]").forEach((el) => {
+      el.addEventListener("change", (e) => {
+        const idx = parseInt(el.dataset.zoneEntity);
+        this._ensureZoneObject(idx);
+        this._config.zones[idx].entity = e.target.value.trim();
+        this._fireChanged();
+      });
+    });
+    this.shadowRoot.querySelectorAll("[data-zone-name]").forEach((el) => {
+      el.addEventListener("change", (e) => {
+        const idx = parseInt(el.dataset.zoneName);
+        this._ensureZoneObject(idx);
+        this._config.zones[idx].name = e.target.value.trim();
+        this._fireChanged();
+      });
+    });
+    this.shadowRoot.querySelectorAll("[data-zone-remove]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = parseInt(el.dataset.zoneRemove);
+        this._config.zones.splice(idx, 1);
+        this._fireChanged();
+        this._render();
+      });
+    });
+  }
+
+  _ensureZoneObject(idx) {
+    if (!this._config.zones) this._config.zones = [];
+    while (this._config.zones.length <= idx) {
+      this._config.zones.push({ entity: "", name: "" });
+    }
+    if (typeof this._config.zones[idx] === "string") {
+      this._config.zones[idx] = { entity: this._config.zones[idx], name: "" };
+    }
+  }
+
+  _renderZoneRows() {
+    const zones = this._config.zones || [];
+    if (zones.length === 0) return '<p class="hint">Noch keine Zonen konfiguriert. Klicke "+ Zone hinzufügen".</p>';
+    return zones.map((z, i) => {
+      const entity = typeof z === "string" ? z : (z.entity || "");
+      const name = typeof z === "object" ? (z.name || "") : "";
+      return `
+        <div class="zone-row">
+          <input type="text" placeholder="media_player.audac_mtx_zone_${i+1}" value="${entity}" data-zone-entity="${i}" />
+          <div style="display:flex;gap:4px;">
+            <input type="text" placeholder="Anzeigename (optional)" value="${name}" data-zone-name="${i}" style="flex:1;" />
+            <button data-zone-remove="${i}" style="
+              border: none; background: none; cursor: pointer; color: #ef5350; font-size: 16px; padding: 0 6px;
+            ">✕</button>
+          </div>
+        </div>
+      `;
+    }).join("");
   }
 
   _fireChanged() {

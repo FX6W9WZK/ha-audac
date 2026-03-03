@@ -20,6 +20,18 @@ from .coordinator import AudacMTXCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+def _get_source_names(entry: ConfigEntry) -> dict[int, str]:
+    options = entry.options
+    result = {}
+    for input_id, default_name in INPUT_NAMES.items():
+        result[input_id] = options.get(f"source_{input_id}_name", default_name)
+    return result
+
+
+def _get_zone_name(entry: ConfigEntry, zone: int) -> str:
+    return entry.options.get(f"zone_{zone}_name", f"Zone {zone}")
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -52,15 +64,17 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
     ) -> None:
         super().__init__(coordinator)
         self._zone = zone
+        self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_zone_{zone}"
-        self._attr_name = f"Zone {zone}"
+        self._attr_name = _get_zone_name(entry, zone)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": entry.data.get("name", "Audac MTX"),
             "manufacturer": "Audac",
             "model": "MTX",
         }
-        self._attr_source_list = list(INPUT_NAMES.values())
+        self._source_names = _get_source_names(entry)
+        self._attr_source_list = list(self._source_names.values())
 
     @property
     def _zone_data(self) -> dict[str, Any]:
@@ -72,6 +86,8 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
     def state(self) -> MediaPlayerState:
         data = self._zone_data
         if not data:
+            return MediaPlayerState.OFF
+        if data.get("routing", 0) == 0:
             return MediaPlayerState.OFF
         if data.get("mute"):
             return MediaPlayerState.IDLE
@@ -97,7 +113,8 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
         data = self._zone_data
         if not data:
             return None
-        return data.get("source_name")
+        routing = data.get("routing", 0)
+        return self._source_names.get(routing, f"Input {routing}")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -131,7 +148,7 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_select_source(self, source: str) -> None:
-        for input_id, name in INPUT_NAMES.items():
+        for input_id, name in self._source_names.items():
             if name == source:
                 await self.coordinator.client.set_routing(self._zone, input_id)
                 await self.coordinator.async_request_refresh()
