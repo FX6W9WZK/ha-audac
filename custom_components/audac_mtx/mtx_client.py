@@ -11,6 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
 RECONNECT_DELAY = 1.0
+INTER_COMMAND_DELAY = 0.05
 
 
 class MTXClient:
@@ -67,6 +68,45 @@ class MTXClient:
     def _build_command(self, command: str, argument: str = "0") -> bytes:
         return f"#|X001|{self._source}|{command}|{argument}|U|\r\n".encode()
 
+    async def _drain_buffer(self) -> None:
+        if self._reader is None:
+            return
+        while True:
+            try:
+                data = await asyncio.wait_for(
+                    self._reader.read(4096),
+                    timeout=0.05,
+                )
+                if data:
+                    _LOGGER.debug("Drained stale data: %s", data.decode(errors="replace").strip()[:100])
+                else:
+                    break
+            except asyncio.TimeoutError:
+                break
+
+    async def _read_all_lines(self, timeout: float = 3.0) -> list[str]:
+        lines = []
+        deadline = asyncio.get_event_loop().time() + timeout
+        while True:
+            remaining = deadline - asyncio.get_event_loop().time()
+            if remaining <= 0:
+                break
+            try:
+                line_bytes = await asyncio.wait_for(
+                    self._reader.readline(),
+                    timeout=min(remaining, 0.5 if lines else timeout),
+                )
+                line = line_bytes.decode(errors="replace").strip()
+                if line:
+                    lines.append(line)
+                    if line.startswith("#|"):
+                        break
+                else:
+                    break
+            except asyncio.TimeoutError:
+                break
+        return lines
+
     async def _send_and_receive(self, command: str, argument: str = "0", retries: int = MAX_RETRIES) -> str:
         async with self._lock:
             for attempt in range(retries + 1):
@@ -80,26 +120,27 @@ class MTXClient:
 
                 raw = self._build_command(command, argument)
                 try:
+                    await self._drain_buffer()
+
                     self._writer.write(raw)
                     await self._writer.drain()
 
-                    response = await asyncio.wait_for(
-                        self._reader.readline(),
-                        timeout=3,
-                    )
-                    decoded = response.decode().strip()
+                    lines = await self._read_all_lines(timeout=3.0)
 
-                    if not decoded:
-                        _LOGGER.debug("Empty response for command %s, attempt %d", command, attempt)
+                    if not lines:
+                        _LOGGER.debug("No response for command %s, attempt %d", command, attempt)
                         if attempt < retries:
                             continue
                         return ""
 
-                    if not decoded.startswith("#|"):
-                        _LOGGER.debug("Unexpected response format for %s: %s", command, decoded[:50])
+                    for line in reversed(lines):
+                        if line.startswith("#|"):
+                            self._consecutive_failures = 0
+                            return line
 
                     self._consecutive_failures = 0
-                    return decoded
+                    return lines[-1]
+
                 except (asyncio.TimeoutError, OSError, ConnectionError) as err:
                     _LOGGER.warning("Communication error with MTX for command %s (attempt %d): %s", command, attempt, err)
                     await self.disconnect()
@@ -133,8 +174,8 @@ class MTXClient:
             return {}
 
         values = data.split("^")
-        if len(values) != 5:
-            _LOGGER.warning("Unexpected zone info format for zone %d: %s", zone, data)
+        if len(values) < 5:
+            _LOGGER.warning("Unexpected zone info format for zone %d: %s (expected at least 5 fields, got %d)", zone, data, len(values))
             return {}
 
         try:
@@ -147,7 +188,7 @@ class MTXClient:
             _LOGGER.warning("Failed to parse zone %d data '%s': %s", zone, data, err)
             return {}
 
-        return {
+        result = {
             "volume": volume_raw,
             "volume_db": -volume_raw,
             "routing": routing,
@@ -158,6 +199,13 @@ class MTXClient:
             "treble": treble_raw,
             "treble_db": BASS_TREBLE_MAP.get(treble_raw, 0),
         }
+
+        if len(values) > 5:
+            remote_inputs = values[5:]
+            _LOGGER.debug("Zone %d has additional fields: %s", zone, remote_inputs)
+            result["remote_inputs"] = remote_inputs
+
+        return result
 
     async def get_all_zones(self, zones_count: int = 8) -> dict[int, dict[str, Any]]:
         zones = {}
@@ -170,6 +218,7 @@ class MTXClient:
                 raise
             except Exception as err:
                 _LOGGER.warning("Failed to get info for zone %d: %s", zone, err)
+            await asyncio.sleep(INTER_COMMAND_DELAY)
         return zones
 
     async def set_volume(self, zone: int, volume: int) -> bool:
