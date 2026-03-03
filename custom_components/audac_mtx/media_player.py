@@ -24,7 +24,8 @@ def _get_source_names(entry: ConfigEntry) -> dict[int, str]:
     options = entry.options
     result = {}
     for input_id, default_name in INPUT_NAMES.items():
-        result[input_id] = options.get(f"source_{input_id}_name", default_name)
+        if options.get(f"source_{input_id}_visible", True):
+            result[input_id] = options.get(f"source_{input_id}_name", default_name)
     return result
 
 
@@ -41,10 +42,10 @@ async def async_setup_entry(
     model = entry.data.get(CONF_MODEL, MODEL_MTX88)
     zones_count = entry.data.get("zones", MODEL_ZONES.get(model, 8))
 
-    entities = [
-        AudacMTXZone(coordinator, zone, entry)
-        for zone in range(1, zones_count + 1)
-    ]
+    entities = []
+    for zone in range(1, zones_count + 1):
+        if entry.options.get(f"zone_{zone}_visible", True):
+            entities.append(AudacMTXZone(coordinator, zone, entry))
     async_add_entities(entities)
 
 

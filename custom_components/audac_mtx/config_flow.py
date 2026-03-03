@@ -98,10 +98,14 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
         for i in range(1, zones_count + 1):
             default_name = current_options.get(f"zone_{i}_name", f"Zone {i}")
             schema_dict[vol.Optional(f"zone_{i}_name", default=default_name)] = str
+            default_visible = current_options.get(f"zone_{i}_visible", True)
+            schema_dict[vol.Optional(f"zone_{i}_visible", default=default_visible)] = bool
 
         for input_id, default_label in INPUT_NAMES.items():
             current_label = current_options.get(f"source_{input_id}_name", default_label)
             schema_dict[vol.Optional(f"source_{input_id}_name", default=current_label)] = str
+            default_visible = current_options.get(f"source_{input_id}_visible", True)
+            schema_dict[vol.Optional(f"source_{input_id}_visible", default=default_visible)] = bool
 
         return self.async_show_form(
             step_id="init",
