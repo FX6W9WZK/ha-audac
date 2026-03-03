@@ -2,16 +2,18 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
-
-# Development only (not needed for HACS plugin)
-preview/
-server.js
-package.json
-src/
-replit.md
-.replit
 .cache/
 .local/
 .agents/
+
+# Development only (Replit preview)
+preview/
+server.js
+
+# Replit-specific
+replit.md
+.replit
 attached_assets/
+
+# Legacy backend (now in ha-audac)
 custom_components/
