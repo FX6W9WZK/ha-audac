@@ -9,6 +9,9 @@ from .const import DEFAULT_PORT, DEFAULT_SOURCE, INPUT_NAMES, BASS_TREBLE_MAP
 
 _LOGGER = logging.getLogger(__name__)
 
+MAX_RETRIES = 2
+RECONNECT_DELAY = 1.0
+
 
 class MTXClient:
     def __init__(self, host: str, port: int = DEFAULT_PORT, source: str = DEFAULT_SOURCE) -> None:
@@ -18,6 +21,7 @@ class MTXClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
+        self._consecutive_failures = 0
 
     @property
     def host(self) -> str:
@@ -35,6 +39,7 @@ class MTXClient:
                 asyncio.open_connection(self._host, self._port),
                 timeout=5,
             )
+            self._consecutive_failures = 0
             _LOGGER.debug("Connected to MTX at %s:%s", self._host, self._port)
         except Exception as err:
             self._reader = None
@@ -54,32 +59,56 @@ class MTXClient:
 
     async def _ensure_connected(self) -> None:
         if self._writer is None:
+            if self._consecutive_failures > 0:
+                delay = min(RECONNECT_DELAY * self._consecutive_failures, 10.0)
+                await asyncio.sleep(delay)
             await self.connect()
 
     def _build_command(self, command: str, argument: str = "0") -> bytes:
         return f"#|X001|{self._source}|{command}|{argument}|U|\r\n".encode()
 
-    async def _send_and_receive(self, command: str, argument: str = "0") -> str:
+    async def _send_and_receive(self, command: str, argument: str = "0", retries: int = MAX_RETRIES) -> str:
         async with self._lock:
-            try:
-                await self._ensure_connected()
-            except ConnectionError:
-                raise
+            for attempt in range(retries + 1):
+                try:
+                    await self._ensure_connected()
+                except ConnectionError:
+                    if attempt < retries:
+                        self._consecutive_failures += 1
+                        continue
+                    raise
 
-            raw = self._build_command(command, argument)
-            try:
-                self._writer.write(raw)
-                await self._writer.drain()
+                raw = self._build_command(command, argument)
+                try:
+                    self._writer.write(raw)
+                    await self._writer.drain()
 
-                response = await asyncio.wait_for(
-                    self._reader.readline(),
-                    timeout=3,
-                )
-                return response.decode().strip()
-            except (asyncio.TimeoutError, OSError, ConnectionError) as err:
-                _LOGGER.warning("Communication error with MTX for command %s: %s", command, err)
-                await self.disconnect()
-                raise ConnectionError(f"Lost connection to MTX: {err}") from err
+                    response = await asyncio.wait_for(
+                        self._reader.readline(),
+                        timeout=3,
+                    )
+                    decoded = response.decode().strip()
+
+                    if not decoded:
+                        _LOGGER.debug("Empty response for command %s, attempt %d", command, attempt)
+                        if attempt < retries:
+                            continue
+                        return ""
+
+                    if not decoded.startswith("#|"):
+                        _LOGGER.debug("Unexpected response format for %s: %s", command, decoded[:50])
+
+                    self._consecutive_failures = 0
+                    return decoded
+                except (asyncio.TimeoutError, OSError, ConnectionError) as err:
+                    _LOGGER.warning("Communication error with MTX for command %s (attempt %d): %s", command, attempt, err)
+                    await self.disconnect()
+                    self._consecutive_failures += 1
+                    if attempt < retries:
+                        continue
+                    raise ConnectionError(f"Lost connection to MTX: {err}") from err
+
+        return ""
 
     @staticmethod
     def _parse_response(response: str) -> str | None:
@@ -90,6 +119,13 @@ class MTXClient:
             return parts[4]
         return None
 
+    @staticmethod
+    def _is_success(response: str) -> bool:
+        if not response:
+            return False
+        parts = response.split("|")
+        return len(parts) >= 4 and "+" in parts[3]
+
     async def get_zone_info(self, zone: int) -> dict[str, Any]:
         resp = await self._send_and_receive(f"GZI0{zone}")
         data = self._parse_response(resp)
@@ -98,13 +134,18 @@ class MTXClient:
 
         values = data.split("^")
         if len(values) != 5:
+            _LOGGER.warning("Unexpected zone info format for zone %d: %s", zone, data)
             return {}
 
-        volume_raw = int(values[0])
-        routing = int(values[1])
-        mute = bool(int(values[2]))
-        bass_raw = int(values[3])
-        treble_raw = int(values[4])
+        try:
+            volume_raw = int(values[0])
+            routing = int(values[1])
+            mute = bool(int(values[2]))
+            bass_raw = int(values[3])
+            treble_raw = int(values[4])
+        except (ValueError, IndexError) as err:
+            _LOGGER.warning("Failed to parse zone %d data '%s': %s", zone, data, err)
+            return {}
 
         return {
             "volume": volume_raw,
@@ -134,37 +175,37 @@ class MTXClient:
     async def set_volume(self, zone: int, volume: int) -> bool:
         volume = max(0, min(70, volume))
         resp = await self._send_and_receive(f"SV{zone}", str(volume))
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def set_volume_up(self, zone: int) -> bool:
         resp = await self._send_and_receive(f"SVU0{zone}")
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def set_volume_down(self, zone: int) -> bool:
         resp = await self._send_and_receive(f"SVD0{zone}")
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def set_routing(self, zone: int, input_id: int) -> bool:
         resp = await self._send_and_receive(f"SR{zone}", str(input_id))
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def set_bass(self, zone: int, bass: int) -> bool:
         bass = max(0, min(14, bass))
         resp = await self._send_and_receive(f"SB0{zone}", str(bass))
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def set_treble(self, zone: int, treble: int) -> bool:
         treble = max(0, min(14, treble))
         resp = await self._send_and_receive(f"ST0{zone}", str(treble))
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def set_mute(self, zone: int, mute: bool) -> bool:
         resp = await self._send_and_receive(f"SM0{zone}", "1" if mute else "0")
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def save(self) -> bool:
         resp = await self._send_and_receive("SAVE")
-        return "+" in (resp or "")
+        return self._is_success(resp)
 
     async def get_version(self) -> str:
         resp = await self._send_and_receive("GSV")

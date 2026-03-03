@@ -34,15 +34,24 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
         try:
             zones = await self.client.get_all_zones(self._zones_count)
+            if not zones and self.data:
+                _LOGGER.debug("No zone data received, keeping previous state")
+                return self.data
             if not zones:
                 raise UpdateFailed("No zone data received from MTX")
             return zones
         except ConnectionError as err:
+            if self.data:
+                _LOGGER.warning("Connection lost to MTX, keeping previous state: %s", err)
+                return self.data
             raise UpdateFailed(f"Connection error: {err}") from err
         except UpdateFailed:
             raise
         except Exception as err:
             await self.client.disconnect()
+            if self.data:
+                _LOGGER.warning("MTX update error, keeping previous state: %s", err)
+                return self.data
             raise UpdateFailed(f"Error communicating with MTX: {err}") from err
 
     async def async_shutdown(self) -> None:

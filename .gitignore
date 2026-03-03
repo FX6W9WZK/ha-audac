@@ -9,11 +9,13 @@ __pycache__/
 # Development only (Replit preview)
 preview/
 server.js
+package.json
 
 # Replit-specific
 replit.md
 .replit
 attached_assets/
 
-# Legacy backend (now in ha-audac)
-custom_components/
+# Development source (production card is in custom_components/audac_mtx/www/)
+src/
+dist/
