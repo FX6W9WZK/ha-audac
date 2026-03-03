@@ -1,8 +1,5 @@
 {
-  "name": "Audac MTX Card",
+  "name": "Audac MTX",
   "render_readme": true,
-  "domains": ["media_player"],
-  "country": ["*"],
-  "homeassistant": "2023.6.0",
-  "content_in_root": false
+  "homeassistant": "2023.6.0"
 }

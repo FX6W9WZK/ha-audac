@@ -42,14 +42,15 @@ Custom Home Assistant Integration und Lovelace Dashboard Card zur Steuerung von 
 ### Manuell
 
 1. Kopiere den Ordner `custom_components/audac_mtx` in dein Home Assistant `config/custom_components/` Verzeichnis
-2. Kopiere `dist/audac-mtx-card.js` in `config/www/`
-3. Füge die Lovelace-Ressource hinzu:
-   ```yaml
-   resources:
-     - url: /local/audac-mtx-card.js
-       type: module
-   ```
-4. Starte Home Assistant neu
+2. Starte Home Assistant neu
+3. Die Lovelace Card wird automatisch als Ressource registriert
+
+> **Hinweis:** Falls die automatische Registrierung nicht funktioniert, füge die Ressource manuell hinzu:
+> ```yaml
+> resources:
+>   - url: /audac_mtx/audac-mtx-card.js
+>     type: module
+> ```
 
 ---
 
@@ -179,7 +180,7 @@ MIT License – siehe [LICENSE](LICENSE)
 Beiträge sind willkommen! Bitte erstelle einen Fork, einen Feature-Branch und einen Merge Request.
 
 ```bash
-git clone https://gitlab.com/DEIN-USERNAME/ha-audac-mtx.git
+git clone https://gitlab.com/tuldener/Audac-Mtx-Control.git
 git checkout -b feature/mein-feature
 # Änderungen vornehmen
 git commit -m "Beschreibung der Änderung"

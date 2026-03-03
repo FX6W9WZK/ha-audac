@@ -4,6 +4,9 @@ DOMAIN = "audac_mtx"
 DEFAULT_PORT = 5001
 DEFAULT_SOURCE = "web"
 
+CARD_FILENAME = "audac-mtx-card.js"
+CARD_URL_PATH = f"/audac_mtx/{CARD_FILENAME}"
+
 INPUT_NAMES = {
     0: "Off",
     1: "Mic 1",
