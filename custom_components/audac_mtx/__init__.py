@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
@@ -77,41 +78,8 @@ async def _register_card(hass: HomeAssistant) -> None:
         ]
     )
 
-    try:
-        from homeassistant.components.lovelace.resources import (
-            ResourceStorageCollection,
-        )
-    except ImportError:
-        _LOGGER.info(
-            "Lovelace resources module not available. Add the card resource manually: %s",
-            CARD_URL_PATH,
-        )
-        return
-
-    if hass.data.get("lovelace_resources"):
-        resources: ResourceStorageCollection = hass.data["lovelace_resources"]
-        existing = [
-            r for r in resources.async_items()
-            if r.get("url", "").startswith(CARD_URL_PATH)
-        ]
-        if not existing:
-            try:
-                await resources.async_create_item(
-                    {"res_type": "module", "url": CARD_URL_PATH}
-                )
-                _LOGGER.info("Registered Audac MTX card as Lovelace resource")
-            except Exception as err:
-                _LOGGER.debug(
-                    "Could not auto-register Lovelace resource: %s. "
-                    "You may need to add it manually: %s",
-                    err,
-                    CARD_URL_PATH,
-                )
-    else:
-        _LOGGER.info(
-            "Lovelace resources not available. Add the card resource manually: %s",
-            CARD_URL_PATH,
-        )
+    add_extra_js_url(hass, CARD_URL_PATH)
+    _LOGGER.info("Registered Audac MTX card as frontend module: %s", CARD_URL_PATH)
 
 
 async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
