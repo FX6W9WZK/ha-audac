@@ -58,6 +58,10 @@ class AudacMTXMuteSwitch(CoordinatorEntity[AudacMTXCoordinator], SwitchEntity):
         return {}
 
     @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and bool(self._zone_data)
+
+    @property
     def is_on(self) -> bool | None:
         data = self._zone_data
         if not data:

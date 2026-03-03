@@ -67,11 +67,17 @@ class AudacMTXSourceSensor(CoordinatorEntity[AudacMTXCoordinator], SensorEntity)
         return {}
 
     @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and bool(self._zone_data)
+
+    @property
     def native_value(self) -> str | None:
         data = self._zone_data
         if not data:
             return None
-        routing = data.get("routing", 0)
+        routing = data.get("routing")
+        if routing is None:
+            return None
         return self._source_names.get(routing, f"Input {routing}")
 
     @property

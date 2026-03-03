@@ -63,11 +63,17 @@ class AudacMTXVolumeNumber(CoordinatorEntity[AudacMTXCoordinator], NumberEntity)
         return {}
 
     @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and bool(self._zone_data)
+
+    @property
     def native_value(self) -> float | None:
         data = self._zone_data
         if not data:
             return None
-        volume_raw = data.get("volume", 70)
+        volume_raw = data.get("volume")
+        if volume_raw is None:
+            return None
         return round((1.0 - (volume_raw / 70.0)) * 100)
 
     async def async_set_native_value(self, value: float) -> None:

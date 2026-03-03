@@ -100,6 +100,10 @@ class AudacMTXZone(CoordinatorEntity[AudacMTXCoordinator], MediaPlayerEntity):
         return {}
 
     @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and bool(self._zone_data)
+
+    @property
     def state(self) -> MediaPlayerState:
         data = self._zone_data
         if not data:

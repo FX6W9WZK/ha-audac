@@ -44,7 +44,6 @@ async def async_setup_entry(
 class AudacMTXSourceSelect(CoordinatorEntity[AudacMTXCoordinator], SelectEntity):
     _attr_has_entity_name = True
     _attr_icon = "mdi:audio-input-rca"
-    _attr_translation_key = "source"
 
     def __init__(self, coordinator: AudacMTXCoordinator, zone: int, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
@@ -70,6 +69,10 @@ class AudacMTXSourceSelect(CoordinatorEntity[AudacMTXCoordinator], SelectEntity)
         return {}
 
     @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and bool(self._zone_data)
+
+    @property
     def options(self) -> list[str]:
         opts = list(self._source_names.values())
         data = self._zone_data
@@ -77,7 +80,6 @@ class AudacMTXSourceSelect(CoordinatorEntity[AudacMTXCoordinator], SelectEntity)
             routing = data.get("routing", 0)
             current = self._source_names.get(routing)
             if current is None:
-                from .const import INPUT_NAMES
                 fallback = INPUT_NAMES.get(routing, f"Input {routing}")
                 if fallback not in opts:
                     opts.append(fallback)
@@ -88,10 +90,11 @@ class AudacMTXSourceSelect(CoordinatorEntity[AudacMTXCoordinator], SelectEntity)
         data = self._zone_data
         if not data:
             return None
-        routing = data.get("routing", 0)
+        routing = data.get("routing")
+        if routing is None:
+            return None
         if routing in self._source_names:
             return self._source_names[routing]
-        from .const import INPUT_NAMES
         return INPUT_NAMES.get(routing, f"Input {routing}")
 
     async def async_select_option(self, option: str) -> None:
@@ -100,7 +103,6 @@ class AudacMTXSourceSelect(CoordinatorEntity[AudacMTXCoordinator], SelectEntity)
                 await self.coordinator.client.set_routing(self._zone, input_id)
                 await self.coordinator.async_request_refresh()
                 return
-        from .const import INPUT_NAMES
         for input_id, name in INPUT_NAMES.items():
             if name == option:
                 await self.coordinator.client.set_routing(self._zone, input_id)

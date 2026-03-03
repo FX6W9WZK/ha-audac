@@ -40,6 +40,16 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 return self.data
             if not zones:
                 raise UpdateFailed("No zone data received from MTX")
+            for zone_id, zone_data in zones.items():
+                _LOGGER.debug(
+                    "Zone %d: volume=%s routing=%s mute=%s bass=%s treble=%s",
+                    zone_id,
+                    zone_data.get("volume"),
+                    zone_data.get("routing"),
+                    zone_data.get("mute"),
+                    zone_data.get("bass"),
+                    zone_data.get("treble"),
+                )
             return zones
         except ConnectionError as err:
             if self.data:
