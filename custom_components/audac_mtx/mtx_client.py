@@ -85,44 +85,55 @@ class MTXClient:
         return result
 
     async def _read_response(self, expected_cmds: set[str], timeout: float = 2.0) -> str:
-        lines_read = 0
-        while lines_read < 20:
+        buffer = b""
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + timeout
+
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                break
             try:
-                line_bytes = await asyncio.wait_for(
-                    self._reader.readline(),
-                    timeout=timeout,
+                chunk = await asyncio.wait_for(
+                    self._reader.read(4096),
+                    timeout=min(remaining, 0.5),
                 )
-                line = line_bytes.decode(errors="replace").strip()
-                lines_read += 1
-                _LOGGER.debug("MTX raw recv: %s", line[:120] if line else "(empty)")
+                if not chunk:
+                    break
+                buffer += chunk
+                _LOGGER.debug("MTX raw recv chunk: %s", chunk[:200])
 
-                if not line:
-                    if line_bytes == b"":
-                        break
-                    continue
+                text = buffer.decode(errors="replace")
+                for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+                    line = line.strip()
+                    if not line or not line.startswith("#|"):
+                        continue
 
-                if not line.startswith("#|"):
-                    continue
+                    parts = line.split("|")
+                    if len(parts) < 5:
+                        continue
 
-                parts = line.split("|")
-                if len(parts) < 5:
-                    continue
+                    if parts[1].strip() == "ALL":
+                        continue
 
-                if parts[1].strip() == "ALL":
-                    continue
+                    resp_cmd = parts[3].strip()
+                    if resp_cmd in expected_cmds:
+                        _LOGGER.debug("MTX matched %s: %s", expected_cmds, line[:120])
+                        return line
 
-                resp_cmd = parts[3].strip()
-                if resp_cmd in expected_cmds:
-                    return line
-
-                _LOGGER.debug(
-                    "Skipping mismatched response: got '%s', expected one of %s: %s",
-                    resp_cmd, expected_cmds, line[:80],
-                )
+                    _LOGGER.debug(
+                        "Skipping mismatched response: got '%s', expected %s: %s",
+                        resp_cmd, expected_cmds, line[:80],
+                    )
 
             except asyncio.TimeoutError:
-                break
+                continue
 
+        if buffer:
+            _LOGGER.debug(
+                "MTX no match in buffer for %s: %s",
+                expected_cmds, buffer.decode(errors="replace")[:200],
+            )
         return ""
 
     async def _send_and_receive(self, command: str, argument: str = "0") -> str:
