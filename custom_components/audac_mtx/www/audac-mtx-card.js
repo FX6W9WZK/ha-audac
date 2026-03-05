@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.6.0";
+const CARD_VERSION = "1.6.1";
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -211,6 +211,14 @@ class AudacMTXCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._rendered) {
+      this._render();
+      return;
+    }
+    // If zone cards are missing (e.g. hass arrived after first render), do full rebuild
+    const zones = this._getZones();
+    const existingCards = this.shadowRoot?.querySelectorAll(".zone-card");
+    if (existingCards && existingCards.length !== zones.length) {
+      this._rendered = false;
       this._render();
       return;
     }
