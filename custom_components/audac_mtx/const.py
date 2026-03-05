@@ -6,6 +6,8 @@ DEFAULT_SOURCE = "web"
 
 CARD_FILENAME = "audac-mtx-card.js"
 CARD_URL_PATH = f"/audac_mtx/{CARD_FILENAME}"
+CARD_VERSION = "1.6.0"
+CARD_URL_VERSIONED = f"{CARD_URL_PATH}?v={CARD_VERSION}"
 
 CONF_MODEL = "model"
 MODEL_MTX48 = "mtx48"

@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
 
-from .const import DOMAIN, CARD_URL_PATH, CARD_FILENAME, CONF_MODEL, MODEL_MTX48, MODEL_MTX88, MODEL_ZONES
+from .const import DOMAIN, CARD_URL_PATH, CARD_URL_VERSIONED, CARD_VERSION, CARD_FILENAME, CONF_MODEL, MODEL_MTX48, MODEL_MTX88, MODEL_ZONES
 from .coordinator import AudacMTXCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ async def _register_card(hass: HomeAssistant) -> None:
         _LOGGER.warning("Audac MTX www directory not found at %s", www_dir)
         return
 
+    # Register static path (unversioned, the file itself)
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(
@@ -77,13 +78,15 @@ async def _register_card(hass: HomeAssistant) -> None:
         ]
     )
 
+    # Load as early frontend resource using versioned URL (cache-busting)
     try:
         from homeassistant.components.frontend import add_extra_js_url
-        add_extra_js_url(hass, CARD_URL_PATH)
-        _LOGGER.debug("Registered Audac MTX card via add_extra_js_url: %s", CARD_URL_PATH)
+        add_extra_js_url(hass, CARD_URL_VERSIONED)
+        _LOGGER.debug("Registered Audac MTX card via add_extra_js_url: %s", CARD_URL_VERSIONED)
     except Exception as err:
         _LOGGER.debug("add_extra_js_url not available: %s", err)
 
+    # Also register / update as Lovelace resource with versioned URL
     try:
         if hass.data.get("lovelace_resources"):
             from homeassistant.components.lovelace.resources import ResourceStorageCollection
@@ -94,11 +97,22 @@ async def _register_card(hass: HomeAssistant) -> None:
             ]
             if not existing:
                 await resources.async_create_item(
-                    {"res_type": "module", "url": CARD_URL_PATH}
+                    {"res_type": "module", "url": CARD_URL_VERSIONED}
                 )
-                _LOGGER.info("Registered Audac MTX card as Lovelace resource: %s", CARD_URL_PATH)
+                _LOGGER.info("Registered Audac MTX card as Lovelace resource: %s", CARD_URL_VERSIONED)
+            else:
+                # Update URL if version has changed
+                for item in existing:
+                    if item.get("url") != CARD_URL_VERSIONED:
+                        await resources.async_update_item(
+                            item["id"],
+                            {"res_type": "module", "url": CARD_URL_VERSIONED},
+                        )
+                        _LOGGER.info(
+                            "Updated Audac MTX card resource to %s", CARD_URL_VERSIONED
+                        )
     except Exception as err:
-        _LOGGER.debug("Could not register Lovelace resource: %s", err)
+        _LOGGER.debug("Could not register/update Lovelace resource: %s", err)
 
 
 async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
