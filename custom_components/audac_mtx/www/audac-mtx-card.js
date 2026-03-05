@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.7.0";
+const CARD_VERSION = "1.7.1";
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -263,7 +263,10 @@ class AudacMTXCard extends HTMLElement {
 
   _toggleExpand(entityId) {
     const wasExpanded = this._expanded[entityId];
-    this._expanded[entityId] = !wasExpanded;
+    // Close all zones first (accordion behaviour)
+    this._expanded = {};
+    // Toggle the clicked zone
+    if (!wasExpanded) this._expanded[entityId] = true;
     this._rendered = false;
     this._render();
     if (!wasExpanded && this._hass) {
@@ -413,8 +416,8 @@ class AudacMTXCard extends HTMLElement {
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.22)` : `rgba(${mtxHexToRgb(t.accent)}, 0.14)`} 0%,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.08)` : `rgba(${mtxHexToRgb(t.accent)}, 0.05)`} 70%,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.38)` : `rgba(${mtxHexToRgb(t.accent)}, 0.26)`} 0%,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.14)` : `rgba(${mtxHexToRgb(t.accent)}, 0.09)`} 70%,
             transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
@@ -1076,8 +1079,8 @@ class AudacMTXMoreInfo extends HTMLElement {
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.22)` : `rgba(${mtxHexToRgb(t.accent)}, 0.14)`} 0%,
-            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.08)` : `rgba(${mtxHexToRgb(t.accent)}, 0.05)`} 70%,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.38)` : `rgba(${mtxHexToRgb(t.accent)}, 0.26)`} 0%,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.14)` : `rgba(${mtxHexToRgb(t.accent)}, 0.09)`} 70%,
             transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
