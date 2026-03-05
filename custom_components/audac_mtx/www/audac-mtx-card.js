@@ -1,4 +1,19 @@
-const CARD_VERSION = "1.7.2";
+const CARD_VERSION = "1.7.3";
+
+// MUST be at top: HA reads this synchronously to know which custom elements to wait for
+window.customCards = window.customCards || [];
+[
+  { type: "audac-mtx-card",        name: "Audac MTX",         description: "Multi-zone Audac MTX audio matrix card", preview: true },
+  { type: "audac-mtx-more-info",   name: "Audac MTX Zonen",   description: "Zonenübersicht (kompakt)", preview: false },
+  { type: "audac-mtx-volume-card", name: "Audac MTX Lautstärke", description: "Lautstärkeregler für eine Zone", preview: false },
+  { type: "audac-mtx-source-card", name: "Audac MTX Quelle",  description: "Quellenauswahl für eine Zone", preview: false },
+  { type: "audac-mtx-bass-card",   name: "Audac MTX Bass",    description: "Bass-Regler für eine Zone", preview: false },
+  { type: "audac-mtx-treble-card", name: "Audac MTX Höhen",   description: "Höhen-Regler für eine Zone", preview: false },
+].forEach(card => {
+  if (!window.customCards.find(c => c.type === card.type)) {
+    window.customCards.push(card);
+  }
+});
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -1367,17 +1382,8 @@ window.customCards.push(
   }
 })();
 
-const _lastAccent = "#7c6bf0"; // updated at runtime
-// Register cards with HA card picker and pre-loader
-window.customCards = window.customCards || [];
-["audac-mtx-card", "audac-mtx-more-info", "audac-mtx-bass-card", "audac-mtx-treble-card"].forEach(type => {
-  if (!window.customCards.find(c => c.type === type)) {
-    window.customCards.push({ type, name: "Audac MTX", description: "Audac MTX audio matrix card", preview: true });
-  }
-});
-
 console.info(
   `%c AUDAC-MTX-CARD %c v${CARD_VERSION} `,
-  `color: white; background: ${_lastAccent || "#7c6bf0"}; font-weight: 700; padding: 2px 6px; border-radius: 4px 0 0 4px;`,
-  `color: ${_lastAccent || "#7c6bf0"}; background: #e8e5fc; font-weight: 700; padding: 2px 6px; border-radius: 0 4px 4px 0;`
+  "color: white; background: #7c6bf0; font-weight: 700; padding: 2px 6px; border-radius: 4px 0 0 4px;",
+  "color: #7c6bf0; background: #e8e5fc; font-weight: 700; padding: 2px 6px; border-radius: 0 4px 4px 0;"
 );
