@@ -288,6 +288,46 @@ Bulk-Befehle werden bevorzugt verwendet; bei Nicht-Unterstützung wird automatis
 
 ## Changelog
 
+### 1.7.2
+- **Fix:** Sporadischer „Konfigurationsfehler" beim Reload behoben
+  - Verschachtelte Template-Literals im CSS-Gradient entfernt (JS Parse-Fehler)
+  - `window.customCards` wird beim Laden sofort registriert
+  - `connectedCallback()` ergänzt für zuverlässiges Re-Render
+
+### 1.7.1
+- **Verbesserung:** Lautstärke-Hintergrundfarbe kräftiger (38% Opacity dunkel, 26% hell)
+- **Neu:** Akkordeon-Verhalten – nur eine Zone gleichzeitig offen
+
+### 1.7.0
+- **Verbesserung:** Zonennamen automatisch gekürzt („Audac MTX Bar" → „Bar")
+- **Verbesserung:** Untertitel zeigt nur noch Quelle, nicht mehr Lautstärke in %
+- **Verbesserung:** Prozent-Badge rechts entfernt – Lautstärke als Hintergrundfüllung
+- **Verbesserung:** Mute-Badge bleibt sichtbar bei stummgeschalteten Zonen
+- **Fix:** `_updateExisting()` mit try/catch – bei Fehler automatischer Rebuild
+
+### 1.6.1
+- **Fix:** Zonen nach Reload nicht mehr sichtbar (Timing-Bug: `hass` kam nach `_render()`)
+- **Fix:** „Custom element not found" nach Seitenreload (fehlende Versions-URL)
+- **Verbesserung:** HACS-Updates aktualisieren Lovelace-Ressource automatisch
+
+### 1.6.0
+- **Fix:** Dauerhaftes Flackern der Card behoben
+  - Kompletter DOM-Rebuild bei jedem HA State-Update ersetzt durch intelligentes Patching
+  - Nur geänderte Werte werden aktualisiert (Slider, Badge, Icon, Quelle)
+  - Slider werden während des Ziehens nicht überschrieben
+- **Neu:** Bass- und Höhen-Slider direkt in der Haupt-Card bedienbar
+
+### 1.5.0
+- **Fix:** Flackern beim Aufklappen einer Zone (update_entity jetzt verzögert nach Animation)
+- **Neu:** Bass/Höhen-Slider in Haupt-Card interaktiv (waren zuvor nur Anzeige)
+
+### 1.4.0
+- **Neu:** Sofortige Entitäts-Aktualisierung beim Aufklappen einer Zone
+- **Neu:** Akzentfarbe frei wählbar im Card-Editor (Farbpalette + Hex-Eingabe + Reset)
+
+### 1.3.1
+- **Verbesserung:** Polling-Intervall auf 15 Sekunden erhöht (schont TCP-Verbindung)
+
 ### 1.3.0
 - **Neu:** Befehle `SRU0x` / `SRD0x` implementiert: neue Services `routing_up` / `routing_down`
 - **Neu:** Befehl `DEF` (Werksreset) in mtx_client hinzugefügt
@@ -313,6 +353,7 @@ Bulk-Befehle werden bevorzugt verwendet; bei Nicht-Unterstützung wird automatis
 
 ### 1.0.0
 - Erstveröffentlichung
+
 
 ---
 
