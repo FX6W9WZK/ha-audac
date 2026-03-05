@@ -1,4 +1,4 @@
-const CARD_VERSION = "1.6.1";
+const CARD_VERSION = "1.7.0";
 
 /** Escapes HTML special characters to prevent XSS when injecting user-defined strings. */
 function mtxEscape(str) {
@@ -10,6 +10,18 @@ function mtxEscape(str) {
     .replace(/'/g, "&#039;");
 }
 
+
+/** Strip integration name prefix from zone friendly name.
+ *  e.g. "Audac MTX Bar" -> "Bar", "Audac MTX Zone 3" -> "Zone 3" */
+function mtxShortName(fullName, cardTitle) {
+  if (!fullName) return fullName;
+  // Strip card title prefix (e.g. "Audac MTX ")
+  if (cardTitle && fullName.startsWith(cardTitle + " ")) {
+    return fullName.slice(cardTitle.length + 1);
+  }
+  // Fallback: strip common prefixes like "Audac MTX "
+  return fullName.replace(/^Audac MTX\s+/i, "") || fullName;
+}
 
 /** Converts a hex color (#rrggbb) to an "r, g, b" string for use in rgba(). */
 function mtxHexToRgb(hex) {
@@ -214,15 +226,21 @@ class AudacMTXCard extends HTMLElement {
       this._render();
       return;
     }
-    // If zone cards are missing (e.g. hass arrived after first render), do full rebuild
     const zones = this._getZones();
     const existingCards = this.shadowRoot?.querySelectorAll(".zone-card");
-    if (existingCards && existingCards.length !== zones.length) {
+    // Full rebuild if zone count changed or cards are missing
+    if (!existingCards || existingCards.length !== zones.length) {
       this._rendered = false;
       this._render();
       return;
     }
-    this._updateExisting();
+    try {
+      this._updateExisting();
+    } catch (e) {
+      // Recover from any update error with a clean rebuild
+      this._rendered = false;
+      this._render();
+    }
   }
 
   _getZones() {
@@ -233,12 +251,13 @@ class AudacMTXCard extends HTMLElement {
         const entityId = typeof z === "string" ? z : z.entity;
         const entity = this._hass.states[entityId];
         if (!entity) return null;
-        return { entityId, entity, name: (typeof z === "object" && z.name) || entity.attributes.friendly_name || entityId };
+        const rawName = (typeof z === "object" && z.name) || entity.attributes.friendly_name || entityId;
+        return { entityId, entity, name: rawName, _shortName: mtxShortName(rawName, this._config.title) };
       }).filter(Boolean);
     }
     return mtxAutoDiscover(this._hass).map((entityId) => ({
       entityId, entity: this._hass.states[entityId],
-      name: this._hass.states[entityId].attributes.friendly_name || entityId,
+      name: this._hass.states[entityId].attributes.friendly_name || entityId, _shortName: mtxShortName(this._hass.states[entityId].attributes.friendly_name || entityId, this._config.title),
     }));
   }
 
@@ -308,13 +327,18 @@ class AudacMTXCard extends HTMLElement {
 
       // Detail line (volume % · source)
       const detail = card.querySelector(".zone-detail");
-      if (detail) detail.textContent = `${muted ? "Stumm" : vol + "%"}${this._config.show_source && src !== "---" ? " · " + src : ""}`;
+      if (detail) detail.textContent = muted ? "Stumm" : (this._config.show_source && src !== "---" ? src : "");
 
       // Badge
-      const zoneBadge = card.querySelector(".zone-badge");
-      if (zoneBadge) {
-        zoneBadge.textContent = muted ? "MUTE" : vol + "%";
-        zoneBadge.className = "zone-badge" + (muted ? " muted" : "");
+      // Mute badge: add/remove dynamically
+      let zoneBadge = card.querySelector(".zone-badge");
+      if (muted && !zoneBadge) {
+        zoneBadge = document.createElement("div");
+        zoneBadge.className = "zone-badge muted";
+        zoneBadge.textContent = "MUTE";
+        card.querySelector(".zone-content")?.insertBefore(zoneBadge, card.querySelector(".zone-chevron"));
+      } else if (!muted && zoneBadge) {
+        zoneBadge.remove();
       }
 
       // Volume slider (only update if not currently being dragged)
@@ -388,7 +412,10 @@ class AudacMTXCard extends HTMLElement {
         .zone-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
-          background: linear-gradient(90deg, ${t.accentLight}, transparent);
+          background: linear-gradient(90deg,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.22)` : `rgba(${mtxHexToRgb(t.accent)}, 0.14)`} 0%,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.08)` : `rgba(${mtxHexToRgb(t.accent)}, 0.05)`} 70%,
+            transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
         .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
@@ -467,10 +494,10 @@ class AudacMTXCard extends HTMLElement {
           <div class="zone-content">
             <div class="zone-icon ${active ? 'active' : ''}">${mtxSvg(muted ? 'speakerMuted' : 'speaker')}</div>
             <div class="zone-info">
-              <span class="zone-name">${mtxEscape(z.name)}</span>
-              <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${this._config.show_source && src !== '---' ? ' \u00b7 ' + mtxEscape(src) : ''}</span>
+              <span class="zone-name">${mtxEscape(z._shortName || z.name)}</span>
+              <span class="zone-detail">${muted ? 'Stumm' : (this._config.show_source && src !== '---' ? mtxEscape(src) : '')}</span>
             </div>
-            <div class="zone-badge ${muted ? 'muted' : ''}">${muted ? 'MUTE' : vol + '%'}</div>
+            ${muted ? `<div class="zone-badge muted">MUTE</div>` : ''}
             <div class="zone-chevron ${exp ? 'rotated' : ''}">${mtxSvg('chevron', 20)}</div>
           </div>
         </div>
@@ -1010,7 +1037,7 @@ class AudacMTXMoreInfo extends HTMLElement {
     return mtxAutoDiscover(this._hass).map((entityId) => ({
       entityId,
       entity: this._hass.states[entityId],
-      name: this._hass.states[entityId].attributes.friendly_name || entityId,
+      name: this._hass.states[entityId].attributes.friendly_name || entityId, _shortName: mtxShortName(this._hass.states[entityId].attributes.friendly_name || entityId, this._config.title),
     }));
   }
 
@@ -1048,7 +1075,10 @@ class AudacMTXMoreInfo extends HTMLElement {
         .zone-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
-          background: linear-gradient(90deg, ${t.accentLight}, transparent);
+          background: linear-gradient(90deg,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.22)` : `rgba(${mtxHexToRgb(t.accent)}, 0.14)`} 0%,
+            ${t.isDark ? `rgba(${mtxHexToRgb(t.accent)}, 0.08)` : `rgba(${mtxHexToRgb(t.accent)}, 0.05)`} 70%,
+            transparent 100%);
           transition: width 0.5s cubic-bezier(0.25,0.1,0.25,1); pointer-events: none;
         }
         .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
@@ -1128,7 +1158,7 @@ class AudacMTXMoreInfo extends HTMLElement {
               <span class="zone-name">${mtxEscape(z.name)}</span>
               <span class="zone-detail">${muted ? 'Stumm' : vol + '%'}${src !== '---' ? ' \u00b7 ' + mtxEscape(src) : ''}</span>
             </div>
-            <div class="zone-badge ${muted ? 'muted' : ''}">${muted ? 'MUTE' : vol + '%'}</div>
+            ${muted ? `<div class="zone-badge muted">MUTE</div>` : ''}
             <div class="zone-chevron ${exp ? 'rotated' : ''}">${mtxSvg('chevron', 20)}</div>
           </div>
         </div>
