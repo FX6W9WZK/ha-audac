@@ -1014,16 +1014,37 @@ class AudacMTXTrebleCard extends HTMLElement {
 
 
 class AudacMTXSingleEditor extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; }
+  constructor() { super(); this.attachShadow({ mode: "open" }); this._config = {}; this._hass = null; }
   setConfig(config) { this._config = { ...config }; this._render(); }
+
+  set hass(hass) { this._hass = hass; this._render(); }
+
+  _getZoneOptions() {
+    if (!this._hass) return [];
+    return mtxAutoDiscover(this._hass).map(entityId => {
+      const entity = this._hass.states[entityId];
+      const fullName = entity?.attributes?.friendly_name || entityId;
+      const short = mtxShortName(fullName, "Audac MTX");
+      return { entityId, label: short };
+    });
+  }
+
   _render() {
+    const zones = this._getZoneOptions();
+    const current = this._config.entity || "";
+    const zoneOptions = zones.map(z =>
+      `<option value="${z.entityId}" ${current === z.entityId ? "selected" : ""}>${mtxEscape(z.label)}</option>`
+    ).join("");
+
     this.shadowRoot.innerHTML = `
       <style>${singleCardEditorStyles()}</style>
       <div class="editor">
         <div class="field">
-          <label>Entity</label>
-          <input type="text" id="entity" value="${this._config.entity || ''}" placeholder="media_player.audac_mtx_zone_1" />
-          <div class="hint">Leer lassen f\u00fcr automatische Erkennung</div>
+          <label>Zone</label>
+          <select id="entity">
+            <option value="" ${!current ? "selected" : ""}>-- Automatisch (erste Zone) --</option>
+            ${zoneOptions}
+          </select>
         </div>
         <div class="field">
           <label>Titel (optional)</label>
@@ -1039,7 +1060,7 @@ class AudacMTXSingleEditor extends HTMLElement {
         </div>
       </div>
     `;
-    this.shadowRoot.getElementById("entity").addEventListener("change", e => { this._config.entity = e.target.value.trim(); this._fire(); });
+    this.shadowRoot.getElementById("entity").addEventListener("change", e => { this._config.entity = e.target.value; this._fire(); });
     this.shadowRoot.getElementById("title").addEventListener("change", e => { this._config.title = e.target.value.trim(); this._fire(); });
     this.shadowRoot.getElementById("theme").addEventListener("change", e => { this._config.theme = e.target.value; this._fire(); });
   }
