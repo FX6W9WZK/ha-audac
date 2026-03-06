@@ -5,7 +5,7 @@ Protocol reference (MTX48/MTX88):
   Answer:  #|source|X001|CMD|data|checksum|\r\n
   Update:  #|ALL|X001|CMD|data|checksum|\r\n  (broadcast after SET)
 
-GET responses strip the 'G' prefix: GZI01 → ZI01, GVALL → VALL
+GET responses strip the 'G' prefix: GZI01 â ZI01, GVALL â VALL
 SET responses echo the command with '+' as data.
 """
 from __future__ import annotations
@@ -26,7 +26,7 @@ INTER_COMMAND_DELAY = 0.15
 # Hard timeout for a single send-and-receive cycle (seconds).
 # Prevents the asyncio.Lock from being held indefinitely when the TCP
 # connection silently hangs (no response, no RST, no EOF).
-COMMAND_TIMEOUT = 8.0
+COMMAND_TIMEOUT = 25.0
 
 # Hard timeout for the entire get_all_zones() call (seconds).
 # Covers bulk + per-zone bass/treble queries for up to 8 zones.
@@ -210,7 +210,7 @@ class MTXClient:
             return await asyncio.wait_for(_do(), timeout=COMMAND_TIMEOUT)
         except asyncio.TimeoutError:
             _LOGGER.warning(
-                "MTX command %s timed out after %.0fs (lock or TCP hang) — forcing disconnect",
+                "MTX command %s timed out after %.0fs (lock or TCP hang) â forcing disconnect",
                 command, COMMAND_TIMEOUT,
             )
             # Force-release the connection so the next poll starts fresh.
@@ -275,7 +275,7 @@ class MTXClient:
             )
         except asyncio.TimeoutError:
             _LOGGER.warning(
-                "get_all_zones() exceeded %.0fs total timeout — forcing disconnect to unfreeze",
+                "get_all_zones() exceeded %.0fs total timeout â forcing disconnect to unfreeze",
                 GET_ALL_ZONES_TIMEOUT,
             )
             self._writer = None
