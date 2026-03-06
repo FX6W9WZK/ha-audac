@@ -5,7 +5,7 @@ Protocol reference (MTX48/MTX88):
   Answer:  #|source|X001|CMD|data|checksum|\r\n
   Update:  #|ALL|X001|CMD|data|checksum|\r\n  (broadcast after SET)
 
-GET responses strip the 'G' prefix: GZI01 â ZI01, GVALL â VALL
+GET responses strip the 'G' prefix: GZI01 Ã¢ÂÂ ZI01, GVALL Ã¢ÂÂ VALL
 SET responses echo the command with '+' as data.
 """
 from __future__ import annotations
@@ -41,6 +41,7 @@ class MTXClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
+        self._lock_acquired = False
         self._consecutive_failures = 0
         self._bulk_supported: bool | None = None
 
@@ -209,8 +210,16 @@ class MTXClient:
         try:
             return await asyncio.wait_for(_do(), timeout=COMMAND_TIMEOUT)
         except asyncio.TimeoutError:
+            # The cancelled coroutine may have left the lock in an inconsistent state.
+            # Creating a new Lock object is the safest way to recover.
+            if self._lock.locked():
+                _LOGGER.warning(
+                    "MTX command %s timed out with lock held — creating new Lock to recover",
+                    command,
+                )
+                self._lock = asyncio.Lock()
             _LOGGER.warning(
-                "MTX command %s timed out after %.0fs (lock or TCP hang) â forcing disconnect",
+                "MTX command %s timed out after %.0fs (lock or TCP hang) Ã¢ÂÂ forcing disconnect",
                 command, COMMAND_TIMEOUT,
             )
             # Force-release the connection so the next poll starts fresh.
@@ -275,7 +284,7 @@ class MTXClient:
             )
         except asyncio.TimeoutError:
             _LOGGER.warning(
-                "get_all_zones() exceeded %.0fs total timeout â forcing disconnect to unfreeze",
+                "get_all_zones() exceeded %.0fs total timeout Ã¢ÂÂ forcing disconnect to unfreeze",
                 GET_ALL_ZONES_TIMEOUT,
             )
             self._writer = None
