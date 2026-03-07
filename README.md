@@ -9,7 +9,7 @@ Home Assistant Integration zur Steuerung von **Audac MTX** Audio-Matrizen (MTX48
 Kommuniziert direkt per TCP mit dem MTX-Geraet und liefert eine Bubble Card-inspirierte Lovelace Card mit.
 
 <p align="center">
-  <img src="docs/card-preview.svg" alt="Audac MTX Card Preview" width="400">
+  <img src="docs/card-preview.png" alt="Audac MTX Card Preview" width="400">
 </p>
 
 ---
