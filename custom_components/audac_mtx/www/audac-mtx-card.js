@@ -105,7 +105,12 @@ function mtxAutoDiscover(hass) {
       if (!id.startsWith("media_player.") || !id.includes("audac_mtx")) return false;
       // Respect zone_visible attribute (set by integration when zone is hidden)
       const visible = hass.states[id]?.attributes?.zone_visible;
-      return visible !== false;
+      if (visible === false) return false;
+      // Hide slave zones (linked_to is non-empty array or non-zero int)
+      const linked = hass.states[id]?.attributes?.linked_to;
+      if (Array.isArray(linked) && linked.length > 0) return false;
+      if (typeof linked === 'number' && linked !== 0) return false;
+      return true;
     })
     .sort();
 }
@@ -282,6 +287,10 @@ class AudacMTXCard extends HTMLElement {
         if (!entity) return null;
         // Respect zone_visible attribute
         if (entity.attributes?.zone_visible === false) return null;
+        // Hide slave zones
+        const linked = entity.attributes?.linked_to;
+        if (Array.isArray(linked) && linked.length > 0) return null;
+        if (typeof linked === 'number' && linked !== 0) return null;
         const rawName = (typeof z === "object" && z.name) || entity.attributes.friendly_name || entityId;
         return { entityId, entity, name: rawName, _shortName: mtxShortName(rawName, this._config.title) };
       }).filter(Boolean);
