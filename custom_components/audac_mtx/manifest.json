@@ -3,10 +3,11 @@
   "name": "Audac MTX",
   "codeowners": ["@tuldener"],
   "config_flow": true,
-  "after_dependencies": ["frontend", "lovelace"],
+  "after_dependencies": ["frontend", "lovelace", "http"],
   "documentation": "https://github.com/tuldener/Audac-Mtx-Control",
+  "issue_tracker": "https://github.com/tuldener/Audac-Mtx-Control/issues",
   "integration_type": "device",
   "iot_class": "local_polling",
-  "version": "2.4.6",
+  "version": "2.4.7",
   "requirements": []
 }

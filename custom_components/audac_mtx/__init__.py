@@ -8,11 +8,14 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
+import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, CARD_URL_PATH, CARD_URL_VERSIONED, CARD_VERSION, CARD_FILENAME, CONF_MODEL, MODEL_MTX48, MODEL_MTX88, MODEL_ZONES
 from .coordinator import AudacMTXCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS = [
     Platform.MEDIA_PLAYER,
