@@ -9,9 +9,9 @@ const _mtxI18n = {
     zones: 'Zonen', zone: 'Zone', zone_1: 'Zone', zone_n: 'Zonen',
     no_zones: 'Keine Zonen gefunden',
     no_zones_hint: 'Audac MTX Integration einrichten oder Zonen manuell konfigurieren',
-    muted: 'Stumm', linked_zones: 'Gekoppelte Zonen',
+    muted: 'Stumm', linked_zones: 'Geoppelte Zonen',
     volume: 'Lautst\u00e4rke', source: 'Quelle', bass: 'Bass', treble: 'H\u00f6hen',
-    title: 'Titel', accent_color: 'Akzentfarbe', reset: 'Standard',
+    title: 'Titel', accent_color: 'Akentfarbe', reset: 'Standard',
     accent_hint: 'Standard: #7c6bf0 (Violett)', design: 'Design',
     auto: 'Automatisch', dark: 'Dunkel', light: 'Hell',
     show_source: 'Quellenauswahl anzeigen', show_bass_treble: 'Bass / H\u00f6hen anzeigen',
@@ -610,7 +610,7 @@ class AudacMTXCard extends HTMLElement {
           <div class="zone-content">
             <div class="zone-icon ${active ? 'active' : ''}">${mtxSvg(muted ? 'speakerMuted' : 'speaker')}</div>
             <div class="zone-info">
-              <span class="zone-name">${mtxEscape(z._shortName || z.name)}${(z.entity.attributes.linked_zones || []).length > 0 ? ' <span style="font-size:10px;opacity:0.6;" title="${mtxT('linked_zones')}">🔗 <span style="font-size:9px;">' + mtxEscape(mtxLinkedNames(this._hass, z.entity.attributes.linked_zones)) + '</span></span>' : ''}</span>
+              <span class="zone-name">${mtxEscape(z._shortName || z.name)}${(z.entity.attributes.linked_zones || []).length > 0 ? ' <span style="font-size:10px;opacity:0.6;" title="${mtxT("linked_zones")}">🔗 <span style="font-size:9px;">' + mtxEscape(mtxLinkedNames(this._hass, z.entity.attributes.linked_zones)) + '</span></span>' : ''}</span>
               <span class="zone-detail">${muted ? mtxT('muted') : (this._config.show_source && src !== '---' ? mtxEscape(src) : '')}</span>
             </div>
             ${muted ? `<div class="zone-badge muted">MUTE</div>` : ''}
