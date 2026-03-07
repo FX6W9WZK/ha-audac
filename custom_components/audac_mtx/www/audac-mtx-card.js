@@ -1,4 +1,4 @@
-const CARD_VERSION = "2.4.3";
+const CARD_VERSION = "2.4.4";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
@@ -9,9 +9,9 @@ const _mtxI18n = {
     zones: 'Zonen', zone: 'Zone', zone_1: 'Zone', zone_n: 'Zonen',
     no_zones: 'Keine Zonen gefunden',
     no_zones_hint: 'Audac MTX Integration einrichten oder Zonen manuell konfigurieren',
-    muted: 'Stumm', linked_zones: 'Geoppelte Zonen',
+    muted: 'Stumm', linked_zones: 'Gekoppelte Zonen',
     volume: 'Lautst\u00e4rke', source: 'Quelle', bass: 'Bass', treble: 'H\u00f6hen',
-    title: 'Titel', accent_color: 'Akentfarbe', reset: 'Standard',
+    title: 'Titel', accent_color: 'Akzentfarbe', reset: 'Standard',
     accent_hint: 'Standard: #7c6bf0 (Violett)', design: 'Design',
     auto: 'Automatisch', dark: 'Dunkel', light: 'Hell',
     show_source: 'Quellenauswahl anzeigen', show_bass_treble: 'Bass / H\u00f6hen anzeigen',
