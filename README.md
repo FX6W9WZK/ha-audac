@@ -2,7 +2,7 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-2.4.4-green.svg?style=flat-square)](https://github.com/tuldener/Audac-Mtx-Control/releases/latest)
+[![Version](https://img.shields.io/badge/Version-2.4.5-green.svg?style=flat-square)](https://github.com/tuldener/Audac-Mtx-Control/releases/latest)
 
 Home Assistant Integration zur Steuerung von **Audac MTX** Audio-Matrizen (MTX48 / MTX88).
 
@@ -99,6 +99,15 @@ accent_color: ""
 ---
 
 ## Changelog
+
+### 2.4.5
+- Fix: Gekoppelte Zonen zeigen jetzt den konfigurierten Namen statt "Zone X"
+- Neues Attribut `zone_number` an jeder Media Player Entity
+- `mtxLinkedNames()` matched jetzt ueber `zone_number` statt Entity-ID-Pattern
+
+### 2.4.4
+- Fix: SyntaxError in `_renderZone` (Single Quotes in Template Literal)
+- Fix: Tippfehler in DE-Uebersetzungen (Gekoppelte, Akzentfarbe)
 
 ### 2.4.3
 - Gekoppelte Slave-Zonennamen werden neben dem Link-Symbol angezeigt (z.B. `Bar 🔗 Subwoofer`)

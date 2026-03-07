@@ -1,4 +1,4 @@
-const CARD_VERSION = "2.4.4";
+const CARD_VERSION = "2.4.5";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
@@ -61,7 +61,8 @@ function mtxLinkedNames(hass, zoneNumbers) {
   const names = [];
   for (const zNum of zoneNumbers) {
     const match = Object.keys(hass.states).find(id =>
-      id.startsWith('media_player.') && id.includes('audac_mtx') && id.endsWith('_zone_' + zNum)
+      id.startsWith('media_player.') && id.includes('audac_mtx') &&
+      hass.states[id]?.attributes?.zone_number === zNum
     );
     if (match) {
       const fn = hass.states[match].attributes.friendly_name || '';

@@ -151,6 +151,7 @@ class AudacMTXZone(AudacMTXBaseEntity, MediaPlayerEntity):
             "treble_raw": data.get("treble", 7),
             "volume_db": data.get("volume_db", -70),
             "routing": data.get("routing", 0),
+            "zone_number": self._zone,
             "zone_visible": self._entry.options.get(f"zone_{self._zone}_visible", True),
             "linked_to": [int(z) for z in self._entry.options.get(f"zone_{self._zone}_links", [])] or self._entry.options.get(f"zone_{self._zone}_linked_to", 0),
             "linked_zones": self._get_slave_zones(),
