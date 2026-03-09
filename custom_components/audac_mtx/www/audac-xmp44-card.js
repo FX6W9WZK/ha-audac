@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.7.2";
+const XMP44_CARD_VERSION = "3.8.0";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -441,6 +441,97 @@ class AudacXMP44Card extends HTMLElement {
           html += '</div>';
         }
         html += '</div>';
+      }
+    }
+
+    // ── MMP40: Transport + Recording + Repeat/Random ──
+    if (moduleName === 'MMP40') {
+      const devicePrefix = a.friendly_name || '';
+      const findBtn = (substr) => rel.buttons.find(e => e.id.includes(substr));
+      // Transport row
+      const goStart = findBtn('go_to_start');
+      const ffw = findBtn('fast_forward');
+      const frw = findBtn('fast_rewind');
+      if (goStart || ffw || frw) {
+        html += '<div class="xmp-playback">';
+        if (frw) html += `<button class="xmp-play-btn" data-press-button="${frw.id}">${xmpSvg('prev', 18)}</button>`;
+        if (goStart) html += `<button class="xmp-play-btn" data-press-button="${goStart.id}">${xmpSvg('stop', 18)}</button>`;
+        if (ffw) html += `<button class="xmp-play-btn" data-press-button="${ffw.id}">${xmpSvg('next', 18)}</button>`;
+        html += '</div>';
+      }
+      // Repeat + Random
+      const repeatBtns = rel.buttons.filter(e => e.id.includes('repeat_'));
+      const randomBtns = rel.buttons.filter(e => e.id.includes('random_'));
+      if (repeatBtns.length > 0 || randomBtns.length > 0) {
+        html += '<div class="xmp-source-grid">';
+        for (const btn of [...repeatBtns, ...randomBtns]) {
+          let name = btn.state.attributes?.friendly_name || '';
+          if (devicePrefix && name.startsWith(devicePrefix + ' ')) name = name.slice(devicePrefix.length + 1);
+          html += `<button class="xmp-source-btn" data-press-button="${btn.id}">${xmpEscape(name)}</button>`;
+        }
+        html += '</div>';
+      }
+      // Recording
+      const recBtns = rel.buttons.filter(e => e.id.includes('rec_'));
+      if (recBtns.length > 0) {
+        html += '<div class="xmp-source-grid">';
+        for (const btn of recBtns) {
+          let name = btn.state.attributes?.friendly_name || '';
+          if (devicePrefix && name.startsWith(devicePrefix + ' ')) name = name.slice(devicePrefix.length + 1);
+          html += `<button class="xmp-source-btn" data-press-button="${btn.id}">${xmpEscape(name)}</button>`;
+        }
+        html += '</div>';
+      }
+      // Recorder mode switch
+      const recSwitch = rel.switches.find(e => e.id.includes('recorder'));
+      if (recSwitch) {
+        const isRec = recSwitch.state.state === 'on';
+        html += `<div class="xmp-bt-row">
+          <span class="xmp-bt-label">${xmpT('recorder')}</span>
+          <button class="xmp-bt-btn ${isRec ? 'on' : 'off'}" data-toggle-switch="${recSwitch.id}">${isRec ? 'ON' : 'OFF'}</button>
+        </div>`;
+      }
+    }
+
+    // ── DMP40/TMP40: Presets, Search, Stereo, Band ──
+    if (moduleName === 'DMP40' || moduleName === 'TMP40') {
+      const devicePrefix = a.friendly_name || '';
+      // Search buttons
+      const searchUp = rel.buttons.find(e => e.id.includes('search_up'));
+      const searchDown = rel.buttons.find(e => e.id.includes('search_down'));
+      if (searchUp || searchDown) {
+        html += '<div class="xmp-playback">';
+        if (searchDown) html += `<button class="xmp-play-btn" data-press-button="${searchDown.id}">${xmpSvg('prev', 18)}</button>`;
+        if (searchUp) html += `<button class="xmp-play-btn" data-press-button="${searchUp.id}">${xmpSvg('next', 18)}</button>`;
+        html += '</div>';
+      }
+      // Preset grid
+      const presetBtns = rel.buttons.filter(e => e.id.includes('preset_'));
+      if (presetBtns.length > 0) {
+        html += '<div class="xmp-source-grid">';
+        for (const btn of presetBtns) {
+          let name = btn.state.attributes?.friendly_name || '';
+          if (devicePrefix && name.startsWith(devicePrefix + ' ')) name = name.slice(devicePrefix.length + 1);
+          html += `<button class="xmp-source-btn" data-press-button="${btn.id}">${xmpEscape(name)}</button>`;
+        }
+        html += '</div>';
+      }
+      // Band switch (DMP40 only)
+      const bandBtn = rel.buttons.find(e => e.id.includes('band_switch'));
+      if (bandBtn) {
+        html += `<div class="xmp-bt-row">
+          <span class="xmp-bt-label">${xmpT('band')}</span>
+          <button class="xmp-bt-btn on" data-press-button="${bandBtn.id}">DAB/FM</button>
+        </div>`;
+      }
+      // Stereo switch
+      const stereoSwitch = rel.switches.find(e => e.id.includes('stereo'));
+      if (stereoSwitch) {
+        const isStereo = stereoSwitch.state.state === 'on';
+        html += `<div class="xmp-bt-row">
+          <span class="xmp-bt-label">${xmpT('stereo')}</span>
+          <button class="xmp-bt-btn ${isStereo ? 'on' : 'off'}" data-toggle-switch="${stereoSwitch.id}">${isStereo ? 'Stereo' : 'Mono'}</button>
+        </div>`;
       }
     }
 

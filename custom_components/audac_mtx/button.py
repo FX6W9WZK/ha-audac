@@ -59,6 +59,22 @@ async def async_setup_entry(
             if module_type == MODULE_DMP40:
                 entities.append(TunerBandSwitchButton(coordinator, entry, slot))
 
+        # MMP40: Transport + Recording + Repeat/Random buttons
+        if module_type == MODULE_MMP40:
+            entities.append(MMP40GoToStartButton(coordinator, entry, slot))
+            entities.append(MMP40FastForwardButton(coordinator, entry, slot))
+            entities.append(MMP40FastRewindButton(coordinator, entry, slot))
+            entities.append(MMP40StartRecordingButton(coordinator, entry, slot))
+            entities.append(MMP40StopRecordingButton(coordinator, entry, slot))
+            entities.append(MMP40PauseRecordingButton(coordinator, entry, slot))
+            entities.append(MMP40CancelRecordingButton(coordinator, entry, slot))
+            entities.append(MMP40RandomOnButton(coordinator, entry, slot))
+            entities.append(MMP40RandomOffButton(coordinator, entry, slot))
+            entities.append(MMP40RepeatOneButton(coordinator, entry, slot))
+            entities.append(MMP40RepeatAllButton(coordinator, entry, slot))
+            entities.append(MMP40RepeatFolderButton(coordinator, entry, slot))
+            entities.append(MMP40RepeatOffButton(coordinator, entry, slot))
+
     if entities:
         async_add_entities(entities)
         _LOGGER.debug("Created %d XMP44 buttons", len(entities))
@@ -308,3 +324,67 @@ class TunerPresetButton(CoordinatorEntity, ButtonEntity):
     async def async_press(self) -> None:
         await self.coordinator.client.select_preset(self._slot, self._preset)
         await self.coordinator.async_request_refresh()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# MMP40 Media Player/Recorder Buttons
+# ═══════════════════════════════════════════════════════════════════════
+
+def _mmp40_button(icon, name_str, uid_suffix, method_name):
+    """Factory for simple MMP40 buttons."""
+    class Btn(CoordinatorEntity, ButtonEntity):
+        _attr_has_entity_name = True
+        _attr_icon = icon
+
+        def __init__(self, coordinator, entry, slot):
+            super().__init__(coordinator)
+            self._slot = slot
+            self._attr_unique_id = f"{entry.entry_id}_mmp40_slot{slot}_{uid_suffix}"
+            self._attr_name = name_str
+            self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+            self._attr_extra_state_attributes = {"slot_number": slot}
+
+        async def async_press(self):
+            await getattr(self.coordinator.client, method_name)(self._slot)
+            await self.coordinator.async_request_refresh()
+
+    Btn.__name__ = f"MMP40{uid_suffix.title().replace('_','')}Button"
+    return Btn
+
+
+MMP40GoToStartButton = _mmp40_button("mdi:skip-backward", "Zum Anfang", "go_to_start", "go_to_start")
+MMP40FastForwardButton = _mmp40_button("mdi:fast-forward", "Vorspulen", "fast_forward", "fast_forward")
+MMP40FastRewindButton = _mmp40_button("mdi:rewind", "Zurückspulen", "fast_rewind", "fast_rewind")
+MMP40StartRecordingButton = _mmp40_button("mdi:record-circle", "Aufnahme starten", "rec_start", "start_recording")
+MMP40StopRecordingButton = _mmp40_button("mdi:stop", "Aufnahme stoppen", "rec_stop", "stop_recording")
+MMP40PauseRecordingButton = _mmp40_button("mdi:pause", "Aufnahme pausieren", "rec_pause", "pause_recording")
+MMP40CancelRecordingButton = _mmp40_button("mdi:close-circle", "Aufnahme abbrechen", "rec_cancel", "cancel_recording")
+
+
+def _mmp40_arg_button(icon, name_str, uid_suffix, method_name, arg):
+    """Factory for MMP40 buttons that pass an argument."""
+    class Btn(CoordinatorEntity, ButtonEntity):
+        _attr_has_entity_name = True
+        _attr_icon = icon
+
+        def __init__(self, coordinator, entry, slot):
+            super().__init__(coordinator)
+            self._slot = slot
+            self._attr_unique_id = f"{entry.entry_id}_mmp40_slot{slot}_{uid_suffix}"
+            self._attr_name = name_str
+            self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+            self._attr_extra_state_attributes = {"slot_number": slot}
+
+        async def async_press(self):
+            await getattr(self.coordinator.client, method_name)(self._slot, arg)
+            await self.coordinator.async_request_refresh()
+
+    return Btn
+
+
+MMP40RandomOnButton = _mmp40_arg_button("mdi:shuffle", "Zufällig An", "random_on", "set_random", True)
+MMP40RandomOffButton = _mmp40_arg_button("mdi:shuffle-disabled", "Zufällig Aus", "random_off", "set_random", False)
+MMP40RepeatOneButton = _mmp40_arg_button("mdi:repeat-once", "Wiederholen: Titel", "repeat_one", "set_repeat", 0)
+MMP40RepeatAllButton = _mmp40_arg_button("mdi:repeat", "Wiederholen: Alle", "repeat_all", "set_repeat", 4)
+MMP40RepeatFolderButton = _mmp40_arg_button("mdi:folder-sync", "Wiederholen: Ordner", "repeat_folder", "set_repeat", 1)
+MMP40RepeatOffButton = _mmp40_arg_button("mdi:repeat-off", "Wiederholen: Aus", "repeat_off", "set_repeat", 3)
