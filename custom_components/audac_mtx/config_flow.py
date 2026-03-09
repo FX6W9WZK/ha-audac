@@ -105,8 +105,21 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # XMP44: If "detect_modules" was checked, run GTPS and re-show form
+            if user_input.get("detect_modules", False):
+                detected = await self._detect_xmp44_modules()
+                if detected:
+                    # Merge detected values into current options for re-display
+                    for slot, type_id in detected.items():
+                        user_input[f"slot_{slot}_module"] = str(type_id)
+                    # Remove the detect flag and re-show form with detected values
+                    user_input.pop("detect_modules", None)
+                    return await self._show_options_form(errors, override=user_input)
+
             validated = {}
             for key, value in user_input.items():
+                if key == "detect_modules":
+                    continue  # Don't store the detect flag
                 if isinstance(value, str):
                     value = value.strip()
                     if key.endswith("_name") and not value:
@@ -117,15 +130,48 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
             if not errors:
                 return self.async_create_entry(title="", data=validated)
 
+        return await self._show_options_form(errors)
+
+    async def _detect_xmp44_modules(self) -> dict[int, int] | None:
+        """Run GTPS once to detect installed modules."""
+        from .xmp44_client import XMP44Client
+        client = XMP44Client(
+            host=self._config_entry.data["host"],
+            port=self._config_entry.data.get("port", DEFAULT_PORT),
+        )
+        try:
+            await client.connect()
+            result = await client.detect_modules()
+            await client.disconnect()
+            return result
+        except Exception as err:
+            _LOGGER.warning("XMP44 module detection failed: %s", err)
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+            return None
+
+    async def _show_options_form(
+        self,
+        errors: dict[str, str] | None = None,
+        override: dict[str, Any] | None = None,
+    ) -> FlowResult:
         model = self._config_entry.data.get(CONF_MODEL, MODEL_MTX88)
         current_options = self._config_entry.options
+        # Merge override values (from detection) on top of current options
+        if override:
+            current_options = {**current_options, **override}
 
         schema_dict = {}
 
         if is_xmp_model(model):
-            # XMP44: Module selection, slot names and visibility
+            # XMP44: Detect button + module selection, slot names and visibility
             from .xmp44_client import MODULE_DESCRIPTIONS
             slots_count = self._config_entry.data.get("slots", MODEL_SLOTS.get(model, 4))
+
+            # Detect button (checkbox)
+            schema_dict[vol.Optional("detect_modules", default=False)] = bool
 
             module_options = [
                 selector.SelectOptionDict(value="0", label="Kein Modul"),
@@ -201,5 +247,5 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(schema_dict),
-            errors=errors,
+            errors=errors or {},
         )

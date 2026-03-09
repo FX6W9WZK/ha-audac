@@ -78,7 +78,8 @@
           "slot_1_module": "Slot 1 – Module",
           "slot_2_module": "Slot 2 – Module",
           "slot_3_module": "Slot 3 – Module",
-          "slot_4_module": "Slot 4 – Module"
+          "slot_4_module": "Slot 4 – Module",
+          "detect_modules": "Auto-detect modules"
         }
       }
     }
