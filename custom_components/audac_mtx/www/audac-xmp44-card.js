@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.8.1";
+const XMP44_CARD_VERSION = "3.8.2";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -122,13 +122,48 @@ function xmpSlotEntities(hass, slotNumber) {
 
 // ─── Main Card ─────────────────────────────────────────────────────
 class AudacXMP44Card extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._hass = null; this._expanded = {}; }
+  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._hass = null; this._expanded = {}; this._prevSnapshot = ''; this._rendered = false; }
 
   static getConfigElement() { return document.createElement("audac-xmp44-card-editor"); }
   static getStubConfig() { return { title: "", theme: "auto", accent_color: "" }; }
 
-  setConfig(config) { this._config = config; if (this._hass) this._render(); }
-  set hass(h) { this._hass = h; this._render(); }
+  setConfig(config) { this._config = config; this._rendered = false; if (this._hass) this._render(); }
+  set hass(h) {
+    this._hass = h;
+    if (!this._rendered) { this._render(); return; }
+    // Only re-render if relevant state changed
+    const snapshot = this._stateSnapshot();
+    if (snapshot === this._prevSnapshot) return;
+    this._prevSnapshot = snapshot;
+    this._render();
+  }
+
+  _stateSnapshot() {
+    const hass = this._hass;
+    if (!hass) return '';
+    let entities = this._config.entities;
+    if (!entities || entities.length === 0) entities = xmpAutoDiscover(hass);
+    const parts = [];
+    for (const id of entities) {
+      const e = hass.states[id];
+      if (!e) continue;
+      const a = e.attributes;
+      parts.push(`${id}:${e.state}:${a.media_title||''}:${a.media_artist||''}:${a.source||''}:${a.station_name||''}:${a.program_name||''}:${a.frequency||''}:${a.signal_strength||''}:${a.output_gain||''}:${a.connected_device||''}`);
+    }
+    // Also include related switch/sensor states for expanded slots
+    for (const id of Object.keys(this._expanded)) {
+      if (!this._expanded[id]) continue;
+      const e = hass.states[id];
+      const slotNum = e?.attributes?.slot_number;
+      if (slotNum == null) continue;
+      for (const [sid, s] of Object.entries(hass.states)) {
+        if (s.attributes?.slot_number === slotNum && (sid.startsWith('switch.') || sid.startsWith('sensor.'))) {
+          parts.push(`${sid}:${s.state}`);
+        }
+      }
+    }
+    return parts.join('|');
+  }
 
   _render() {
     const hass = this._hass;
@@ -299,6 +334,8 @@ class AudacXMP44Card extends HTMLElement {
       </div>
     `;
     this._attachEvents();
+    this._rendered = true;
+    this._prevSnapshot = this._stateSnapshot();
   }
 
   _renderSlot(s, t) {
