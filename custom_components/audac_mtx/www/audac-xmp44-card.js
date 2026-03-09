@@ -1,0 +1,454 @@
+const XMP44_CARD_VERSION = "3.6.0";
+
+// ─── i18n ───────────────────────────────────────────────────────────
+const _xmpLang = () => {
+  try { return document.querySelector('home-assistant')?.hass?.language || 'en'; } catch(e) { return 'en'; }
+};
+const _xmpI18n = {
+  de: {
+    slots: 'Slots', slot: 'Slot', no_slots: 'Keine Module gefunden',
+    no_slots_hint: 'Audac XMP44 Integration einrichten und Module konfigurieren',
+    playing: 'Wiedergabe', paused: 'Pausiert', stopped: 'Gestoppt', idle: 'Bereit',
+    station: 'Sender', frequency: 'Frequenz', signal: 'Signal',
+    title_default: 'Audac XMP44', design: 'Design',
+    auto: 'Automatisch', dark: 'Dunkel', light: 'Hell',
+    title: 'Titel', accent_color: 'Akzentfarbe', reset: 'Standard',
+    accent_hint: 'Standard: #7c6bf0 (Violett)',
+    stereo: 'Stereo', mono: 'Mono', band: 'Band',
+    connected: 'Verbunden', not_connected: 'Nicht verbunden',
+    pairing: 'Pairing', recorder: 'Aufnahme',
+    desc_main: 'XMP44 Module mit Status und Steuerung',
+    name_main: 'Audac XMP44',
+    entity_not_found: 'Entity nicht gefunden',
+  },
+  en: {
+    slots: 'Slots', slot: 'Slot', no_slots: 'No modules found',
+    no_slots_hint: 'Set up Audac XMP44 integration and configure modules',
+    playing: 'Playing', paused: 'Paused', stopped: 'Stopped', idle: 'Idle',
+    station: 'Station', frequency: 'Frequency', signal: 'Signal',
+    title_default: 'Audac XMP44', design: 'Design',
+    auto: 'Automatic', dark: 'Dark', light: 'Light',
+    title: 'Title', accent_color: 'Accent color', reset: 'Default',
+    accent_hint: 'Default: #7c6bf0 (Violet)',
+    stereo: 'Stereo', mono: 'Mono', band: 'Band',
+    connected: 'Connected', not_connected: 'Not connected',
+    pairing: 'Pairing', recorder: 'Recording',
+    desc_main: 'XMP44 modules with status and controls',
+    name_main: 'Audac XMP44',
+    entity_not_found: 'Entity not found',
+  },
+};
+function xmpT(key) { const l = _xmpLang(); return (_xmpI18n[l] || _xmpI18n['en'])[key] || _xmpI18n['en'][key] || key; }
+
+// ─── Registration ──────────────────────────────────────────────────
+window.customCards = window.customCards || [];
+if (!window.customCards.find(c => c.type === "audac-xmp44-card")) {
+  window.customCards.push({
+    type: "audac-xmp44-card", name: "Audac XMP44",
+    description: "Audac XMP44 modular audio system card", preview: true,
+  });
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────
+function xmpEscape(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function xmpHexToRgb(hex) {
+  const c = hex.replace("#","");
+  return `${parseInt(c.substring(0,2),16)}, ${parseInt(c.substring(2,4),16)}, ${parseInt(c.substring(4,6),16)}`;
+}
+function xmpTheme(isDark, accentHex) {
+  const accent = accentHex || "#7c6bf0";
+  const rgb = xmpHexToRgb(accent);
+  return {
+    bg: isDark ? "rgba(30,33,40,0.95)" : "rgba(255,255,255,0.95)",
+    cardBg: isDark ? "rgba(40,44,52,0.8)" : "rgba(245,247,250,0.8)",
+    cardBgHover: isDark ? "rgba(50,55,65,0.9)" : "rgba(235,238,245,0.9)",
+    text: isDark ? "#e4e6eb" : "#1a1c20",
+    textSec: isDark ? "rgba(228,230,235,0.6)" : "rgba(26,28,32,0.5)",
+    accent, accentLight: isDark ? `rgba(${rgb},0.15)` : `rgba(${rgb},0.1)`,
+    accentMid: isDark ? `rgba(${rgb},0.25)` : `rgba(${rgb},0.18)`,
+    accentShadow: `rgba(${rgb},0.4)`, border: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    isDark,
+  };
+}
+function xmpIsDark(theme) {
+  return theme === "dark" || (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+const XMP_ICONS = {
+  bluetooth: '<path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/>',
+  radio: '<path d="M20 6H8.3l8.26-3.918L15.54 0 3.27 5.818C2.52 6.136 2 6.835 2 7.667V18c0 1.105.895 2 2 2h16c1.105 0 2-.895 2-2V8c0-1.105-.895-2-2-2zm-8 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/>',
+  music: '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>',
+  microphone: '<path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>',
+  speaker: '<path d="M17 2H7c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm0 16c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>',
+  voicefile: '<path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zm-3 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm3.5 6h-7v-.7c0-1.1 1.3-2.1 3.5-2.1s3.5 1 3.5 2.1V19z"/>',
+  internet: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>',
+  play: '<path d="M8 5v14l11-7z"/>',
+  pause: '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>',
+  stop: '<path d="M6 6h12v12H6z"/>',
+  next: '<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>',
+  prev: '<path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>',
+  chevron: '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>',
+};
+function xmpSvg(icon, size = 22) {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor">${XMP_ICONS[icon] || ''}</svg>`;
+}
+
+const MODULE_ICON_MAP = {
+  DMP40: 'radio', TMP40: 'radio', MMP40: 'music', IMP40: 'internet',
+  FMP40: 'voicefile', BMP40: 'bluetooth', NMP40: 'speaker',
+};
+
+function xmpAutoDiscover(hass) {
+  if (!hass) return [];
+  return Object.keys(hass.states)
+    .filter(id => id.startsWith("media_player.") && hass.states[id]?.attributes?.slot_number != null)
+    .sort();
+}
+
+// ─── Main Card ─────────────────────────────────────────────────────
+class AudacXMP44Card extends HTMLElement {
+  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; this._hass = null; this._expanded = {}; }
+
+  static getConfigElement() { return document.createElement("audac-xmp44-card-editor"); }
+  static getStubConfig() { return { title: "", theme: "auto", accent_color: "" }; }
+
+  setConfig(config) { this._config = config; if (this._hass) this._render(); }
+  set hass(h) { this._hass = h; this._render(); }
+
+  _render() {
+    const hass = this._hass;
+    if (!hass) return;
+    const t = xmpTheme(xmpIsDark(this._config.theme || "auto"), this._config.accent_color);
+
+    let entities = this._config.entities;
+    if (!entities || entities.length === 0) {
+      entities = xmpAutoDiscover(hass);
+    }
+    const slots = entities.map(id => {
+      const entity = hass.states[id];
+      if (!entity) return null;
+      return { entityId: id, entity };
+    }).filter(Boolean);
+
+    const title = this._config.title || xmpT('title_default');
+    const activeCount = slots.filter(s => ['playing','paused'].includes(s.entity.state)).length;
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: block; --accent: ${t.accent}; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .xmp-card {
+          background: ${t.bg}; border-radius: 24px; padding: 20px;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          color: ${t.text}; backdrop-filter: blur(20px); border: 1px solid ${t.border};
+        }
+        .xmp-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 0 4px; }
+        .xmp-header-icon {
+          width: 42px; height: 42px; border-radius: 14px;
+          background: linear-gradient(135deg, ${t.accent}, #a78bfa);
+          display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
+        }
+        .xmp-header-content { flex: 1; min-width: 0; }
+        .xmp-header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; }
+        .xmp-header-sub { font-size: 11px; color: ${t.textSec}; font-weight: 500; }
+        .xmp-header-badge {
+          background: ${t.accentLight}; color: ${t.accent};
+          font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 12px; white-space: nowrap;
+        }
+        .slots-container { display: flex; flex-direction: column; gap: 8px; }
+        .slot-card {
+          background: ${t.cardBg}; border-radius: 18px; overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
+        }
+        .slot-card:hover { background: ${t.cardBgHover}; }
+        .slot-card.expanded {
+          border-color: ${t.isDark ? 'rgba(124,107,240,0.2)' : 'rgba(124,107,240,0.15)'};
+          background: ${t.isDark ? 'rgba(45,48,58,0.9)' : 'rgba(240,242,248,0.95)'};
+        }
+        .slot-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
+        .slot-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
+        .slot-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
+          display: flex; align-items: center; justify-content: center;
+          color: ${t.textSec}; transition: all 0.3s ease; flex-shrink: 0;
+        }
+        .slot-icon.active { background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white; }
+        .slot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .slot-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slot-detail { font-size: 11px; color: ${t.textSec}; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slot-badge {
+          font-size: 11px; font-weight: 600; color: ${t.accent};
+          background: ${t.accentLight}; padding: 4px 10px; border-radius: 10px;
+          white-space: nowrap; flex-shrink: 0;
+        }
+        .slot-badge.playing { color: #4caf50; background: ${t.isDark ? 'rgba(76,175,80,0.15)' : 'rgba(76,175,80,0.1)'}; }
+        .slot-chevron { color: ${t.textSec}; transition: transform 0.3s ease; flex-shrink: 0; }
+        .slot-chevron.rotated { transform: rotate(180deg); }
+        .slot-controls {
+          padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 12px;
+          animation: xmpSlideDown 0.3s cubic-bezier(0.25,0.1,0.25,1);
+        }
+        @keyframes xmpSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        .xmp-playback { display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .xmp-play-btn {
+          width: 40px; height: 40px; border-radius: 12px; border: none;
+          background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
+          color: ${t.textSec}; cursor: pointer; display: flex; align-items: center; justify-content: center;
+          transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .xmp-play-btn:hover { background: ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}; color: ${t.text}; }
+        .xmp-play-btn.primary {
+          width: 48px; height: 48px; border-radius: 14px;
+          background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white;
+        }
+        .xmp-play-btn.primary:hover { opacity: 0.9; }
+        .xmp-song-info {
+          text-align: center; padding: 4px 0 8px;
+        }
+        .xmp-song-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .xmp-song-artist { font-size: 11px; color: ${t.textSec}; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .xmp-info-row {
+          display: flex; align-items: center; justify-content: space-between;
+          font-size: 12px; color: ${t.textSec}; padding: 4px 0;
+        }
+        .xmp-info-label { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
+        .xmp-info-value { font-weight: 600; color: ${t.text}; }
+        .xmp-source-grid {
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px;
+        }
+        .xmp-source-btn {
+          padding: 8px 10px; border-radius: 10px; border: 1px solid ${t.border};
+          background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
+          color: ${t.textSec}; font-size: 11px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s ease;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .xmp-source-btn:hover { background: ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'}; color: ${t.text}; }
+        .xmp-source-btn.active {
+          background: ${t.accentLight}; color: ${t.accent};
+          border-color: ${t.isDark ? 'rgba(124,107,240,0.3)' : 'rgba(124,107,240,0.2)'};
+        }
+        .xmp-empty {
+          display: flex; flex-direction: column; align-items: center;
+          justify-content: center; padding: 30px 20px; gap: 8px; color: ${t.textSec};
+        }
+        .xmp-empty p { font-size: 14px; font-weight: 600; }
+        .xmp-empty span { font-size: 12px; opacity: 0.6; text-align: center; }
+      </style>
+      <div class="xmp-card">
+        <div class="xmp-header">
+          <div class="xmp-header-icon">${xmpSvg('speaker', 24)}</div>
+          <div class="xmp-header-content">
+            <h2 class="xmp-header-title">${xmpEscape(title)}</h2>
+            <span class="xmp-header-sub">${slots.length} ${xmpT('slots')}</span>
+          </div>
+          ${activeCount > 0 ? `<div class="xmp-header-badge">${activeCount} ${xmpT('playing')}</div>` : ''}
+        </div>
+        <div class="slots-container">
+          ${slots.length > 0 ? slots.map(s => this._renderSlot(s, t)).join("") :
+            `<div class="xmp-empty">${xmpSvg('speaker',48)}<p>${xmpT("no_slots")}</p><span>${xmpT("no_slots_hint")}</span></div>`}
+        </div>
+      </div>
+    `;
+    this._attachEvents();
+  }
+
+  _renderSlot(s, t) {
+    const a = s.entity.attributes;
+    const moduleName = a.module_name || 'Unknown';
+    const moduleIcon = MODULE_ICON_MAP[moduleName] || 'music';
+    const friendlyName = a.friendly_name || moduleName;
+    const state = s.entity.state;
+    const isActive = ['playing','paused'].includes(state);
+    const exp = this._expanded[s.entityId] || false;
+
+    // Detail line
+    let detail = '';
+    if (a.station_name) detail = a.station_name;
+    else if (a.program_name) detail = a.program_name;
+    else if (a.media_title) detail = a.media_title;
+    else if (a.connected_device && a.connected_device !== 'Nicht verbunden') detail = `🔗 ${a.connected_device}`;
+    else if (a.module_description) detail = a.module_description;
+
+    // Badge
+    let badge = '';
+    if (state === 'playing') badge = `<span class="slot-badge playing">${xmpT('playing')}</span>`;
+    else if (state === 'paused') badge = `<span class="slot-badge">${xmpT('paused')}</span>`;
+    else if (a.frequency) badge = `<span class="slot-badge">${(a.frequency / 100).toFixed(1)} MHz</span>`;
+    else badge = `<span class="slot-badge">${moduleName}</span>`;
+
+    return `
+      <div class="slot-card ${exp ? 'expanded' : ''}" data-entity="${s.entityId}">
+        <div class="slot-main" data-toggle="${s.entityId}">
+          <div class="slot-content">
+            <div class="slot-icon ${isActive ? 'active' : ''}">${xmpSvg(moduleIcon, 22)}</div>
+            <div class="slot-info">
+              <div class="slot-name">${xmpEscape(friendlyName)}</div>
+              ${detail ? `<div class="slot-detail">${xmpEscape(detail)}</div>` : ''}
+            </div>
+            ${badge}
+            <div class="slot-chevron ${exp ? 'rotated' : ''}">${xmpSvg('chevron', 20)}</div>
+          </div>
+        </div>
+        ${exp ? this._renderControls(s, t) : ''}
+      </div>
+    `;
+  }
+
+  _renderControls(s, t) {
+    const a = s.entity.attributes;
+    const moduleName = a.module_name || '';
+    const state = s.entity.state;
+    let html = '<div class="slot-controls">';
+
+    // Song info (BMP40, MMP40, NMP40, IMP40)
+    const title = a.media_title;
+    const artist = a.media_artist;
+    if (title) {
+      html += `<div class="xmp-song-info">
+        <div class="xmp-song-title">${xmpEscape(title)}</div>
+        ${artist ? `<div class="xmp-song-artist">${xmpEscape(artist)}</div>` : ''}
+      </div>`;
+    }
+
+    // Playback controls (BMP40, MMP40, NMP40)
+    const features = a.supported_features || 0;
+    const hasPlay = features & 4; // PLAY
+    if (hasPlay) {
+      const isPlaying = state === 'playing';
+      html += `<div class="xmp-playback">
+        <button class="xmp-play-btn" data-action="prev" data-entity="${s.entityId}">${xmpSvg('prev', 20)}</button>
+        <button class="xmp-play-btn primary" data-action="${isPlaying ? 'pause' : 'play'}" data-entity="${s.entityId}">
+          ${xmpSvg(isPlaying ? 'pause' : 'play', 24)}
+        </button>
+        <button class="xmp-play-btn" data-action="next" data-entity="${s.entityId}">${xmpSvg('next', 20)}</button>
+      </div>`;
+    }
+
+    // Source selection (IMP40)
+    const sources = a.source_list;
+    const currentSource = a.source;
+    if (sources && sources.length > 0) {
+      html += `<div class="xmp-source-grid">
+        ${sources.map(src =>
+          `<button class="xmp-source-btn ${src === currentSource ? 'active' : ''}"
+                  data-source="${xmpEscape(src)}" data-entity="${s.entityId}">${xmpEscape(src)}</button>`
+        ).join('')}
+      </div>`;
+    }
+
+    // Tuner info (DMP40, TMP40)
+    if (a.frequency) {
+      html += `<div class="xmp-info-row"><span class="xmp-info-label">${xmpT('frequency')}</span><span class="xmp-info-value">${(a.frequency / 100).toFixed(1)} MHz</span></div>`;
+    }
+    if (a.program_name && !title) {
+      html += `<div class="xmp-info-row"><span class="xmp-info-label">${xmpT('station')}</span><span class="xmp-info-value">${xmpEscape(a.program_name)}</span></div>`;
+    }
+    if (a.signal_strength != null) {
+      html += `<div class="xmp-info-row"><span class="xmp-info-label">${xmpT('signal')}</span><span class="xmp-info-value">${a.signal_strength}%</span></div>`;
+    }
+    if (a.band) {
+      html += `<div class="xmp-info-row"><span class="xmp-info-label">${xmpT('band')}</span><span class="xmp-info-value">${a.band}</span></div>`;
+    }
+
+    // Output gain (all modules)
+    if (a.output_gain != null) {
+      html += `<div class="xmp-info-row"><span class="xmp-info-label">Output Gain</span><span class="xmp-info-value">${a.output_gain} dB</span></div>`;
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  _attachEvents() {
+    // Toggle expand
+    this.shadowRoot.querySelectorAll('[data-toggle]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.toggle;
+        this._expanded[id] = !this._expanded[id];
+        this._render();
+      });
+    });
+    // Playback buttons
+    this.shadowRoot.querySelectorAll('[data-action]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        const entityId = el.dataset.entity;
+        const serviceMap = { play: 'media_play', pause: 'media_pause', stop: 'media_stop', next: 'media_next_track', prev: 'media_previous_track' };
+        if (serviceMap[action]) {
+          this._hass.callService('media_player', serviceMap[action], { entity_id: entityId });
+        }
+      });
+    });
+    // Source buttons
+    this.shadowRoot.querySelectorAll('[data-source]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._hass.callService('media_player', 'select_source', {
+          entity_id: el.dataset.entity, source: el.dataset.source,
+        });
+      });
+    });
+  }
+
+  getCardSize() { return 3; }
+}
+
+// ─── Editor ────────────────────────────────────────────────────────
+class AudacXMP44CardEditor extends HTMLElement {
+  constructor() { super(); this.attachShadow({mode:'open'}); this._config = {}; }
+  setConfig(config) { this._config = {...config}; this._render(); }
+  set hass(h) { this._hass = h; }
+
+  _render() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: block; }
+        .editor { padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .field { margin-bottom: 12px; }
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--primary-text-color, #333); }
+        input, select { width: 100%; padding: 8px 12px; border: 1px solid var(--divider-color, #ddd); border-radius: 8px; font-size: 14px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #333); }
+        .hint { font-size: 11px; color: var(--secondary-text-color, #888); margin-top: 2px; }
+        .row { display: flex; gap: 12px; }
+        .row .field { flex: 1; }
+      </style>
+      <div class="editor">
+        <div class="field">
+          <label>${xmpT('title')}</label>
+          <input type="text" id="title" value="${xmpEscape(this._config.title || '')}" placeholder="${xmpT('title_default')}">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>${xmpT('design')}</label>
+            <select id="theme">
+              <option value="auto" ${(this._config.theme||'auto')==='auto'?'selected':''}>${xmpT('auto')}</option>
+              <option value="dark" ${this._config.theme==='dark'?'selected':''}>${xmpT('dark')}</option>
+              <option value="light" ${this._config.theme==='light'?'selected':''}>${xmpT('light')}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>${xmpT('accent_color')}</label>
+            <input type="text" id="accent_color" value="${this._config.accent_color || ''}" placeholder="#7c6bf0">
+            <div class="hint">${xmpT('accent_hint')}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    ['title','theme','accent_color'].forEach(field => {
+      const el = this.shadowRoot.getElementById(field);
+      if (el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+        this._config[field] = el.value;
+        this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: this._config } }));
+      });
+    });
+  }
+}
+
+// ─── Register ──────────────────────────────────────────────────────
+const _xmpDefine = (name, cls) => { if (!customElements.get(name)) customElements.define(name, cls); };
+_xmpDefine("audac-xmp44-card", AudacXMP44Card);
+_xmpDefine("audac-xmp44-card-editor", AudacXMP44CardEditor);
