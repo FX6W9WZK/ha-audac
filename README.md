@@ -1,8 +1,8 @@
-# Audac MTX
+# Audac
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-3.8.4-green.svg?style=flat-square)](https://github.com/tuldener/ha-audac/releases/latest)
+[![Version](https://img.shields.io/badge/Version-3.8.5-green.svg?style=flat-square)](https://github.com/tuldener/ha-audac/releases/latest)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tuldener&repository=ha-audac&category=integration)
 
@@ -18,7 +18,7 @@ Kommuniziert direkt per TCP mit den Geraeten und liefert Bubble Card-inspirierte
 
 ## Features
 
-- **Direkte TCP-Verbindung** - Kommuniziert direkt mit dem Audac MTX (Port 5001)
+- **Direkte TCP-Verbindung** - Kommuniziert direkt mit Audac Geraeten (Port 5001)
 - **Media Player Entities** - Jede Zone wird als eigener Media Player dargestellt
 - **Zonensteuerung** - Lautstaerke, Mute, Quellenauswahl pro Zone
 - **Zonenkopplung** - Zonen als Master/Slave koppeln (Dropdown in den Optionen). Slave-Zonen werden automatisch synchronisiert und in der Kachel ausgeblendet. Gekoppelte Zonennamen werden neben dem Link-Symbol angezeigt
@@ -63,7 +63,7 @@ Kommuniziert direkt per TCP mit den Geraeten und liefert Bubble Card-inspirierte
 1. Oeffne HACS in Home Assistant
 2. Gehe zu **Integrationen** -> drei Punkte -> **Benutzerdefinierte Repositories**
 3. Fuege `https://github.com/tuldener/ha-audac` hinzu, Kategorie **Integration**
-4. Installiere **Audac MTX**
+4. Installiere **Audac**
 5. Starte Home Assistant neu
 
 ### Manuell
@@ -76,7 +76,7 @@ Kommuniziert direkt per TCP mit den Geraeten und liefert Bubble Card-inspirierte
 ## Konfiguration
 
 1. **Einstellungen** -> **Geraete & Dienste** -> **Integration hinzufuegen**
-2. Suche nach **Audac MTX**
+2. Suche nach **Audac**
 3. Gib IP-Adresse, Port (Standard: 5001) und Modell (MTX48 / MTX88 / XMP44) ein
 
 ---
