@@ -144,7 +144,7 @@ async def _register_lovelace_resource(hass: HomeAssistant, url_path: str, url_ve
         pass
 
     if resource_collection is None:
-        if "lovelace" not in hass.data:
+        if not hass.is_running:
             _up = url_path
             _uv = url_versioned
             _lb = label
@@ -152,10 +152,10 @@ async def _register_lovelace_resource(hass: HomeAssistant, url_path: str, url_ve
                 "homeassistant_started",
                 lambda _: hass.async_create_task(_register_lovelace_resource(hass, _up, _uv, _lb))
             )
+            _LOGGER.debug("Audac %s: Lovelace not ready yet, deferring to homeassistant_started", label)
             return
-        _LOGGER.warning(
-            "Audac %s: Could not find Lovelace resource collection. "
-            "Add card manually: URL=%s, Type=JavaScript Module",
+        _LOGGER.debug(
+            "Audac %s: Lovelace resource collection not found — card was likely already added manually or via UI. URL=%s",
             label, url_versioned,
         )
         return

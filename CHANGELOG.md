@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.8.9
+- Fix: Lovelace resource warning at startup — defer registration to `homeassistant_started` when collection not ready yet (instead of logging a false warning)
+- Downgraded fallback message from WARNING to DEBUG
+
 ## 3.8.8
 - Fix: IMP40 station buttons duplicate unique_id — now includes pointer for guaranteed uniqueness
 - Added deduplication for IMP40 favourites list
