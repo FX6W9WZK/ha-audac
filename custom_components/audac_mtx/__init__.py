@@ -148,10 +148,11 @@ async def _register_lovelace_resource(hass: HomeAssistant, url_path: str, url_ve
             _up = url_path
             _uv = url_versioned
             _lb = label
-            hass.bus.async_listen_once(
-                "homeassistant_started",
-                lambda _: hass.async_create_task(_register_lovelace_resource(hass, _up, _uv, _lb))
-            )
+
+            async def _deferred_register(_event) -> None:
+                await _register_lovelace_resource(hass, _up, _uv, _lb)
+
+            hass.bus.async_listen_once("homeassistant_started", _deferred_register)
             _LOGGER.debug("Audac %s: Lovelace not ready yet, deferring to homeassistant_started", label)
             return
         _LOGGER.debug(

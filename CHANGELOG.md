@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.10.2
+- Fix: `coroutine '_register_lovelace_resource' was never awaited` warning on Python 3.14
+- Replaced sync lambda with async callback for `homeassistant_started` event listener
+
 ## 3.10.1
 - Fix: XMP44 slot card editor no longer destroyed by state refreshes
 - Editor renders only once (not on every `set hass()` call)
