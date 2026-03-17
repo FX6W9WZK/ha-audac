@@ -1,4 +1,4 @@
-const XMP44_CARD_VERSION = "3.12.0";
+const XMP44_CARD_VERSION = "3.13.0";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _xmpLang = () => {
@@ -204,26 +204,26 @@ class AudacXMP44Card extends HTMLElement {
         :host { display: block; --accent: ${t.accent}; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         .xmp-card {
-          background: ${t.bg}; border-radius: 24px; padding: 20px;
+          background: ${t.bg}; border-radius: 25px; padding: 16px;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           color: ${t.text}; backdrop-filter: blur(20px); border: 1px solid ${t.border};
         }
         .xmp-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 0 4px; }
         .xmp-header-icon {
-          width: 42px; height: 42px; border-radius: 14px;
+          width: 38px; height: 38px; border-radius: 50%;
           background: linear-gradient(135deg, ${t.accent}, #a78bfa);
           display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
         }
         .xmp-header-content { flex: 1; min-width: 0; }
-        .xmp-header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; }
+        .xmp-header-title { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; }
         .xmp-header-sub { font-size: 11px; color: ${t.textSec}; font-weight: 500; }
         .xmp-header-badge {
           background: ${t.accentLight}; color: ${t.accent};
-          font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 12px; white-space: nowrap;
+          font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px; white-space: nowrap;
         }
         .slots-container { display: flex; flex-direction: column; gap: 8px; }
         .slot-card {
-          background: ${t.cardBg}; border-radius: 18px; overflow: hidden;
+          background: ${t.cardBg}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
         }
         .slot-card:hover { background: ${t.cardBgHover}; }
@@ -231,10 +231,10 @@ class AudacXMP44Card extends HTMLElement {
           border-color: ${t.isDark ? 'rgba(124,107,240,0.2)' : 'rgba(124,107,240,0.15)'};
           background: ${t.isDark ? 'rgba(45,48,58,0.9)' : 'rgba(240,242,248,0.95)'};
         }
-        .slot-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
+        .slot-main { position: relative; cursor: pointer; padding: 10px 12px; overflow: hidden; }
         .slot-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
         .slot-icon {
-          width: 40px; height: 40px; border-radius: 12px;
+          width: 36px; height: 36px; border-radius: 50%;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
           display: flex; align-items: center; justify-content: center;
           color: ${t.textSec}; transition: all 0.3s ease; flex-shrink: 0;
@@ -252,20 +252,20 @@ class AudacXMP44Card extends HTMLElement {
         .slot-chevron { color: ${t.textSec}; transition: transform 0.3s ease; flex-shrink: 0; }
         .slot-chevron.rotated { transform: rotate(180deg); }
         .slot-controls {
-          padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 12px;
+          padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 12px;
           animation: xmpSlideDown 0.3s cubic-bezier(0.25,0.1,0.25,1);
         }
         @keyframes xmpSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         .xmp-playback { display: flex; align-items: center; justify-content: center; gap: 8px; }
         .xmp-play-btn {
-          width: 40px; height: 40px; border-radius: 12px; border: none;
+          width: 36px; height: 36px; border-radius: 50%; border: none;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
           color: ${t.textSec}; cursor: pointer; display: flex; align-items: center; justify-content: center;
           transition: all 0.2s ease; flex-shrink: 0;
         }
         .xmp-play-btn:hover { background: ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}; color: ${t.text}; }
         .xmp-play-btn.primary {
-          width: 48px; height: 48px; border-radius: 14px;
+          width: 44px; height: 44px; border-radius: 50%;
           background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white;
         }
         .xmp-play-btn.primary:hover { opacity: 0.9; }
@@ -284,7 +284,7 @@ class AudacXMP44Card extends HTMLElement {
           display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px;
         }
         .xmp-source-btn {
-          padding: 8px 10px; border-radius: 10px; border: 1px solid ${t.border};
+          padding: 7px 10px; border-radius: 20px; border: 1px solid ${t.border};
           background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
           color: ${t.textSec}; font-size: 11px; font-weight: 600;
           cursor: pointer; transition: all 0.2s ease;
@@ -308,7 +308,7 @@ class AudacXMP44Card extends HTMLElement {
           display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
         }
         .xmp-trigger-btn {
-          padding: 10px 12px; border-radius: 12px; border: 1px solid ${t.border};
+          padding: 8px 12px; border-radius: 20px; border: 1px solid ${t.border};
           background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
           color: ${t.text}; font-size: 12px; font-weight: 600;
           cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
@@ -850,24 +850,24 @@ class AudacXMP44SlotCard extends HTMLElement {
       :host { display: block; --accent: ${t.accent}; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       .xmp-card {
-        background: ${t.bg}; border-radius: 24px; padding: 20px;
+        background: ${t.bg}; border-radius: 25px; padding: 16px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: ${t.text}; backdrop-filter: blur(20px); border: 1px solid ${t.border};
       }
       .xmp-header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding: 0 4px; }
       .xmp-header-icon {
-        width: 42px; height: 42px; border-radius: 14px;
+        width: 38px; height: 38px; border-radius: 50%;
         background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
         display: flex; align-items: center; justify-content: center;
         color: ${t.textSec}; flex-shrink: 0; transition: all 0.3s ease;
       }
       .xmp-header-icon.active { background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white; }
       .xmp-header-content { flex: 1; min-width: 0; }
-      .xmp-header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .xmp-header-title { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .xmp-header-sub { font-size: 11px; color: ${t.textSec}; font-weight: 500; }
       .xmp-header-badge {
         background: ${t.accentLight}; color: ${t.accent};
-        font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 12px; white-space: nowrap;
+        font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px; white-space: nowrap;
       }
       .xmp-header-badge.playing { color: #4caf50; background: ${t.isDark ? 'rgba(76,175,80,0.15)' : 'rgba(76,175,80,0.1)'}; }
       .slot-controls {
@@ -875,14 +875,14 @@ class AudacXMP44SlotCard extends HTMLElement {
       }
       .xmp-playback { display: flex; align-items: center; justify-content: center; gap: 8px; }
       .xmp-play-btn {
-        width: 40px; height: 40px; border-radius: 12px; border: none;
+        width: 36px; height: 36px; border-radius: 50%; border: none;
         background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
         color: ${t.textSec}; cursor: pointer; display: flex; align-items: center; justify-content: center;
         transition: all 0.2s ease; flex-shrink: 0;
       }
       .xmp-play-btn:hover { background: ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}; color: ${t.text}; }
       .xmp-play-btn.primary {
-        width: 48px; height: 48px; border-radius: 14px;
+        width: 44px; height: 44px; border-radius: 50%;
         background: linear-gradient(135deg, ${t.accent}, #a78bfa); color: white;
       }
       .xmp-play-btn.primary:hover { opacity: 0.9; }
@@ -897,7 +897,7 @@ class AudacXMP44SlotCard extends HTMLElement {
       .xmp-info-value { font-weight: 600; color: ${t.text}; }
       .xmp-source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
       .xmp-source-btn {
-        padding: 8px 10px; border-radius: 10px; border: 1px solid ${t.border};
+        padding: 7px 10px; border-radius: 20px; border: 1px solid ${t.border};
         background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
         color: ${t.textSec}; font-size: 11px; font-weight: 600;
         cursor: pointer; transition: all 0.2s ease;
@@ -911,7 +911,7 @@ class AudacXMP44SlotCard extends HTMLElement {
       .xmp-trigger-grid { display: flex; flex-direction: column; gap: 6px; }
       .xmp-trigger-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
       .xmp-trigger-btn {
-        padding: 10px 12px; border-radius: 12px; border: 1px solid ${t.border};
+        padding: 8px 12px; border-radius: 20px; border: 1px solid ${t.border};
         background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
         color: ${t.text}; font-size: 12px; font-weight: 600;
         cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;

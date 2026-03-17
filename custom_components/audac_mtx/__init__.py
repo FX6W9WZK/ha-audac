@@ -10,13 +10,28 @@ from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, CARD_URL_PATH, CARD_URL_VERSIONED, CARD_VERSION, CARD_FILENAME, XMP44_CARD_FILENAME, XMP44_CARD_URL_PATH, XMP44_CARD_URL_VERSIONED, CONF_MODEL, MODEL_MTX48, MODEL_MTX88, MODEL_XMP44, MODEL_ZONES, is_xmp_model
+from .const import DOMAIN, CARD_URL_PATH, CARD_FILENAME, XMP44_CARD_FILENAME, XMP44_CARD_URL_PATH, CONF_MODEL, MODEL_MTX48, MODEL_MTX88, MODEL_XMP44, MODEL_ZONES, is_xmp_model
 from .coordinator import AudacMTXCoordinator
 from .xmp44_coordinator import XMP44Coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+def _read_card_version(js_path: Path) -> str:
+    """Read CARD_VERSION from the first line of a JS file.
+
+    Expected format: const CARD_VERSION = "x.y.z";
+    Falls back to "0" if unreadable.
+    """
+    try:
+        first_line = js_path.read_text(encoding="utf-8").split("\n", 1)[0]
+        if "CARD_VERSION" in first_line:
+            return first_line.split('"')[1]
+    except (IndexError, OSError):
+        pass
+    return "0"
 
 PLATFORMS_MTX = [
     Platform.MEDIA_PLAYER,
@@ -93,6 +108,13 @@ async def _register_card(hass: HomeAssistant) -> None:
         _LOGGER.warning("Audac www directory not found at %s", www_dir)
         return
 
+    # Read versions from JS files (single source of truth)
+    mtx_version = _read_card_version(www_dir / CARD_FILENAME)
+    xmp44_version = _read_card_version(www_dir / XMP44_CARD_FILENAME)
+
+    mtx_url_versioned = f"{CARD_URL_PATH}?v={mtx_version}"
+    xmp44_url_versioned = f"{XMP44_CARD_URL_PATH}?v={xmp44_version}"
+
     # Register static paths for both cards
     paths = [
         StaticPathConfig(
@@ -110,12 +132,12 @@ async def _register_card(hass: HomeAssistant) -> None:
             )
         )
     await hass.http.async_register_static_paths(paths)
-    _LOGGER.debug("Registered Audac static paths: %s, %s", CARD_URL_PATH, XMP44_CARD_URL_PATH)
+    _LOGGER.debug("Registered Audac static paths: %s (v%s), %s (v%s)", CARD_URL_PATH, mtx_version, XMP44_CARD_URL_PATH, xmp44_version)
 
     # Register as Lovelace storage resources
-    await _register_lovelace_resource(hass, CARD_URL_PATH, CARD_URL_VERSIONED, "MTX")
+    await _register_lovelace_resource(hass, CARD_URL_PATH, mtx_url_versioned, "MTX")
     if (www_dir / XMP44_CARD_FILENAME).exists():
-        await _register_lovelace_resource(hass, XMP44_CARD_URL_PATH, XMP44_CARD_URL_VERSIONED, "XMP44")
+        await _register_lovelace_resource(hass, XMP44_CARD_URL_PATH, xmp44_url_versioned, "XMP44")
 
 
 async def _register_lovelace_resource(hass: HomeAssistant, url_path: str, url_versioned: str, label: str = "") -> None:

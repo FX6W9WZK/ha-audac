@@ -1,4 +1,4 @@
-const CARD_VERSION = "3.12.0";
+const CARD_VERSION = "3.13.0";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
@@ -193,7 +193,7 @@ function mtxBaseStyles(t) {
     :host { display: block; --accent: ${t.accent}; --accent-light: ${t.accentLight}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .mtx-card {
-      background: ${t.bg}; border-radius: 24px; padding: 20px;
+      background: ${t.bg}; border-radius: 25px; padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       color: ${t.text}; backdrop-filter: blur(20px); border: 1px solid ${t.border};
     }
@@ -201,12 +201,12 @@ function mtxBaseStyles(t) {
       display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 0 4px;
     }
     .mtx-header-icon {
-      width: 42px; height: 42px; border-radius: 14px;
+      width: 38px; height: 38px; border-radius: 50%;
       background: linear-gradient(135deg, ${t.accent}, #a78bfa);
       display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
     }
     .mtx-header-content { flex: 1; min-width: 0; }
-    .mtx-header-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; }
+    .mtx-header-title { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.3; }
     .mtx-header-sub { font-size: 11px; color: ${t.textSec}; font-weight: 500; }
     .mtx-header-badge {
       background: ${t.accentLight}; color: ${t.accent};
@@ -515,7 +515,7 @@ class AudacMTXCard extends HTMLElement {
         ${mtxBaseStyles(t)}
         .zones-container { display: flex; flex-direction: column; gap: 8px; }
         .zone-card {
-          background: ${t.cardBg}; border-radius: 18px; overflow: hidden;
+          background: ${t.cardBg}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
         }
         .zone-card:hover { background: ${t.cardBgHover}; }
@@ -525,7 +525,7 @@ class AudacMTXCard extends HTMLElement {
         }
         .zone-card.muted .zone-vol-bg { opacity: 0 !important; }
         .zone-card.off { opacity: 0.5; }
-        .zone-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
+        .zone-main { position: relative; cursor: pointer; padding: 10px 12px; overflow: hidden; }
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
@@ -536,7 +536,7 @@ class AudacMTXCard extends HTMLElement {
         }
         .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
         .zone-icon {
-          width: 40px; height: 40px; border-radius: 12px;
+          width: 36px; height: 36px; border-radius: 50%;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
           display: flex; align-items: center; justify-content: center;
           color: ${t.textSec}; transition: all 0.3s ease; flex-shrink: 0;
@@ -564,7 +564,7 @@ class AudacMTXCard extends HTMLElement {
         .tone-ctrl {
           flex: 1; display: flex; flex-direction: column; gap: 6px;
           background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
-          padding: 10px 12px; border-radius: 12px;
+          padding: 8px 12px; border-radius: 20px;
         }
         .tone-val { font-size: 16px; font-weight: 700; color: ${t.text}; }
       </style>
@@ -1260,7 +1260,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         .mtx-card { border: none; border-radius: 0; backdrop-filter: none; }
         .zones-container { display: flex; flex-direction: column; gap: 8px; }
         .zone-card {
-          background: ${t.cardBg}; border-radius: 18px; overflow: hidden;
+          background: ${t.cardBg}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
         }
         .zone-card:hover { background: ${t.cardBgHover}; }
@@ -1271,7 +1271,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         .zone-card.muted .zone-vol-bg { opacity: 0 !important; }
         .zone-card.off { opacity: 0.5; }
         .zone-card.current { border-color: ${t.accent}; }
-        .zone-main { position: relative; cursor: pointer; padding: 14px 16px; overflow: hidden; }
+        .zone-main { position: relative; cursor: pointer; padding: 10px 12px; overflow: hidden; }
         .zone-vol-bg {
           position: absolute; top: 0; left: 0; height: 100%;
           background: linear-gradient(90deg,
@@ -1282,7 +1282,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         }
         .zone-content { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
         .zone-icon {
-          width: 40px; height: 40px; border-radius: 12px;
+          width: 36px; height: 36px; border-radius: 50%;
           background: ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'};
           display: flex; align-items: center; justify-content: center;
           color: ${t.textSec}; transition: all 0.3s ease; flex-shrink: 0;
@@ -1310,7 +1310,7 @@ class AudacMTXMoreInfo extends HTMLElement {
         .tone-ctrl {
           flex: 1; display: flex; flex-direction: column; gap: 6px;
           background: ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'};
-          padding: 10px 12px; border-radius: 12px;
+          padding: 8px 12px; border-radius: 20px;
         }
         .tone-val { font-size: 18px; font-weight: 700; color: ${t.text}; }
       </style>

@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.13.0
+- **Auto-versioning**: Card version is now single-source-of-truth in the JS files — `__init__.py` reads it dynamically, no more manual syncing of `CARD_VERSION` in `const.py`
+- **Bubble Card sizing** for both MTX and XMP44 cards:
+  - Karten-Radius: 25px durchgehend (statt 24px/18px gemischt)
+  - Karten-Padding: 16px (statt 20px)
+  - Header-Icon: 38px, rund (statt 42px, eckig)
+  - Titel: 14px (statt 16px)
+  - Zone/Slot-Icons: 36px, rund (statt 40px, eckig)
+  - Zone/Slot-Zeilen: ~56px (statt ~68px)
+  - Action-Buttons: Pillenform 20px Radius (statt eckig 12px)
+  - Play-Buttons: rund (statt eckig)
+
 ## 3.12.0
 - **Rewrite: GZI0x per-zone polling** replaces bulk GVALL/GRALL/GMALL strategy
 - Each zone queried individually via `GZI0x` (volume^routing^mute^bass^treble in one response)
