@@ -20,8 +20,8 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=60)
 
 # Hard timeout for a complete coordinator update cycle.
-# Must be longer than GET_ALL_ZONES_TIMEOUT (45 s) in mtx_client.py.
-UPDATE_TIMEOUT = 55.0
+# Must be longer than GET_ALL_ZONES_TIMEOUT (25 s) in mtx_client.py.
+UPDATE_TIMEOUT = 35.0
 
 # Tolerance for volume drift before a re-sync command is sent (0–70 raw units).
 # 2 = roughly 3% volume — avoids constant re-syncing due to rounding.
@@ -188,7 +188,7 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
 
     async def _fetch_data(self) -> dict[int, dict[str, Any]]:
         try:
-            zones = await self.client.get_all_zones(self._zones_count)
+            zones = await self.client.get_all_zones(self._zones_count, previous=self.data)
             if not zones and self.data:
                 self._consecutive_update_failures += 1
                 _LOGGER.debug("No zone data received (failure %d/%d), keeping previous state",

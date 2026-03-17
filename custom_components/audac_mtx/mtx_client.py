@@ -19,7 +19,8 @@ from .const import DEFAULT_PORT, DEFAULT_SOURCE, INPUT_NAMES, BASS_TREBLE_MAP
 _LOGGER = logging.getLogger(__name__)
 
 # Hard timeout for the entire get_all_zones() call (seconds).
-GET_ALL_ZONES_TIMEOUT = 45.0
+# 8 zones × ~2s per zone + margin = 25s should be plenty.
+GET_ALL_ZONES_TIMEOUT = 25.0
 
 
 class MTXClient(AudacClient):
@@ -27,19 +28,8 @@ class MTXClient(AudacClient):
 
     DEVICE_ADDRESS = "X001"
 
-    # Bass/treble rarely change — only query them every N polls to reduce
-    # the total number of TCP commands per update cycle.
-    BASS_TREBLE_REFRESH_INTERVAL = 5
-
     def __init__(self, host: str, port: int = DEFAULT_PORT, source: str = DEFAULT_SOURCE) -> None:
         super().__init__(host, port, source)
-        self._bulk_supported: bool | None = None
-        self._bass_treble_cache: dict[int, dict[str, int]] = {}
-        self._poll_count: int = 0
-
-    async def connect(self) -> None:
-        await super().connect()
-        self._bulk_supported = None
 
     # ── Zone queries ────────────────────────────────────────────────
 
@@ -73,11 +63,17 @@ class MTXClient(AudacClient):
             "treble_db": BASS_TREBLE_MAP.get(treble_raw, 0),
         }
 
-    async def get_all_zones(self, zones_count: int = 8) -> dict[int, dict[str, Any]]:
-        """Fetch all zone data with a hard overall timeout."""
+    async def get_all_zones(self, zones_count: int = 8, previous: dict[int, dict[str, Any]] | None = None) -> dict[int, dict[str, Any]]:
+        """Fetch all zone data using GZI0x (one command per zone).
+
+        Each zone is queried individually. If a single zone fails, its
+        previous data is preserved (if available) while other zones update
+        normally. This is more resilient than bulk commands where a single
+        garbled response loses all zone data.
+        """
         try:
             return await asyncio.wait_for(
-                self._get_all_zones_inner(zones_count),
+                self._get_all_zones_inner(zones_count, previous),
                 timeout=GET_ALL_ZONES_TIMEOUT,
             )
         except asyncio.TimeoutError:
@@ -90,105 +86,35 @@ class MTXClient(AudacClient):
             self._consecutive_failures += 1
             raise ConnectionError("get_all_zones timed out") from None
 
-    async def _get_all_zones_inner(self, zones_count: int) -> dict[int, dict[str, Any]]:
-        if self._bulk_supported is False:
-            return await self._get_all_zones_individual(zones_count)
-
+    async def _get_all_zones_inner(self, zones_count: int, previous: dict[int, dict[str, Any]] | None = None) -> dict[int, dict[str, Any]]:
         zones: dict[int, dict[str, Any]] = {}
-        volumes = await self._get_bulk("GVALL", zones_count)
-        await asyncio.sleep(INTER_COMMAND_DELAY)
-        routings = await self._get_bulk("GRALL", zones_count)
-        await asyncio.sleep(INTER_COMMAND_DELAY)
-        mutes = await self._get_bulk("GMALL", zones_count)
-        await asyncio.sleep(INTER_COMMAND_DELAY)
+        failed_zones: list[int] = []
 
-        if not volumes and not routings and not mutes:
-            if self._bulk_supported is None:
-                _LOGGER.info("MTX bulk commands not supported, switching to per-zone queries")
-            self._bulk_supported = False
-            return await self._get_all_zones_individual(zones_count)
-
-        self._bulk_supported = True
-        self._poll_count += 1
-
-        # Determine if we need a full bass/treble refresh this cycle
-        need_bass_treble = (
-            not self._bass_treble_cache
-            or self._poll_count % self.BASS_TREBLE_REFRESH_INTERVAL == 0
-        )
-
-        for zone in range(1, zones_count + 1):
-            cached_bt = self._bass_treble_cache.get(zone, {})
-            zones[zone] = {
-                "volume": volumes.get(zone, 70),
-                "volume_db": -volumes.get(zone, 70),
-                "routing": routings.get(zone, 0),
-                "source_name": INPUT_NAMES.get(routings.get(zone, 0), "Off"),
-                "mute": mutes.get(zone, 0) != 0,
-                "bass": cached_bt.get("bass", 7),
-                "bass_db": BASS_TREBLE_MAP.get(cached_bt.get("bass", 7), 0),
-                "treble": cached_bt.get("treble", 7),
-                "treble_db": BASS_TREBLE_MAP.get(cached_bt.get("treble", 7), 0),
-            }
-
-        if need_bass_treble:
-            _LOGGER.debug("Refreshing bass/treble for all %d zones (poll #%d)", zones_count, self._poll_count)
-            for zone in range(1, zones_count + 1):
-                try:
-                    bass = await self._get_single_value(f"GB0{zone}")
-                    if bass is not None:
-                        zones[zone]["bass"] = bass
-                        zones[zone]["bass_db"] = BASS_TREBLE_MAP.get(bass, 0)
-                    await asyncio.sleep(INTER_COMMAND_DELAY)
-                    treble = await self._get_single_value(f"GT0{zone}")
-                    if treble is not None:
-                        zones[zone]["treble"] = treble
-                        zones[zone]["treble_db"] = BASS_TREBLE_MAP.get(treble, 0)
-                    await asyncio.sleep(INTER_COMMAND_DELAY)
-                except ConnectionError:
-                    raise
-                except Exception as err:
-                    _LOGGER.warning("Bass/treble error zone %d: %s", zone, err)
-            # Update cache
-            for zone in range(1, zones_count + 1):
-                self._bass_treble_cache[zone] = {
-                    "bass": zones[zone]["bass"],
-                    "treble": zones[zone]["treble"],
-                }
-
-        return zones
-
-    async def _get_all_zones_individual(self, zones_count: int) -> dict[int, dict[str, Any]]:
-        zones = {}
         for zone in range(1, zones_count + 1):
             try:
                 info = await self.get_zone_info(zone)
                 if info:
                     zones[zone] = info
+                elif previous and zone in previous:
+                    # GZI returned empty — keep previous data for this zone
+                    zones[zone] = previous[zone]
+                    failed_zones.append(zone)
             except ConnectionError:
                 raise
             except Exception as err:
-                _LOGGER.warning("Failed to get info for zone %d: %s", zone, err)
+                _LOGGER.debug("Zone %d query failed: %s", zone, err)
+                if previous and zone in previous:
+                    zones[zone] = previous[zone]
+                    failed_zones.append(zone)
             await asyncio.sleep(INTER_COMMAND_DELAY)
-        return zones
 
-    async def _get_bulk(self, command: str, zones_count: int) -> dict[int, int]:
-        resp = await self._send_and_receive(command, timeout=3.0)
-        data = self._get_data_field(resp)
-        if not data or data == "+":
-            _LOGGER.debug("No data for bulk command %s, will fall back to per-zone", command)
-            return {}
-        values = data.split("^")
-        result = {}
-        for i, val in enumerate(values):
-            zone = i + 1
-            if zone > zones_count:
-                break
-            try:
-                result[zone] = int(val)
-            except ValueError:
-                _LOGGER.warning("%s: invalid value '%s' for zone %d", command, val, zone)
-        return result
+        if failed_zones:
+            _LOGGER.warning(
+                "MTX: %d/%d zones returned no data, kept previous state: %s",
+                len(failed_zones), zones_count, failed_zones,
+            )
+
+        return zones
 
     # ── Zone SET commands ───────────────────────────────────────────
 
@@ -220,17 +146,11 @@ class MTXClient(AudacClient):
     async def set_bass(self, zone: int, bass: int) -> bool:
         bass = max(0, min(14, bass))
         resp = await self._send_and_receive(f"SB0{zone}", str(bass))
-        if self._is_success(resp):
-            if zone in self._bass_treble_cache:
-                self._bass_treble_cache[zone]["bass"] = bass
         return self._is_success(resp)
 
     async def set_treble(self, zone: int, treble: int) -> bool:
         treble = max(0, min(14, treble))
         resp = await self._send_and_receive(f"ST0{zone}", str(treble))
-        if self._is_success(resp):
-            if zone in self._bass_treble_cache:
-                self._bass_treble_cache[zone]["treble"] = treble
         return self._is_success(resp)
 
     async def set_mute(self, zone: int, mute: bool) -> bool:

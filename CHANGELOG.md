@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.12.0
+- **Rewrite: GZI0x per-zone polling** replaces bulk GVALL/GRALL/GMALL strategy
+- Each zone queried individually via `GZI0x` (volume^routing^mute^bass^treble in one response)
+- **Per-zone failure resilience**: if one zone fails, previous data for that zone is kept while other zones update normally
+- **Always fresh bass/treble**: no more cache, every poll returns all 5 values per zone
+- 8 TCP commands per poll (~5-6s) — simple, predictable, resilient
+- Removed bass/treble cache (no longer needed)
+- Reduced timeouts (GET_ALL_ZONES: 45→25s, UPDATE: 55→35s)
+
 ## 3.11.0
 - **Faster MTX polling**: Bass/treble values are now cached and only refreshed every 5th poll
 - Normal polls: 3 TCP commands (~2-3s) instead of 19 (~15-20s)
