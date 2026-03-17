@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.14.0
+- **HA theme integration**: Cards now use `--ha-card-background`, `--ha-card-border-radius`, `--ha-card-border-color`, and `--ha-card-box-shadow` CSS variables
+- Removed hardcoded opaque backgrounds and `backdrop-filter: blur()` from card containers
+- Zone/slot rows use subtle `rgba()` overlays instead of opaque card backgrounds
+- Cards blend seamlessly with Bubble Card, transparent themes, and glassmorphism themes
+- Both MTX and XMP44 cards (including slot card) updated
+
 ## 3.13.1
 - **Fix: Lovelace resource registration for HA 2026.3+** — used `hasattr(ll_data, "resources")` attribute access instead of dict-style lookup (HA changed from dict to object)
 - **Fix: blocking `read_text` call** — version reading now uses `async_add_executor_job` to avoid event loop warning

@@ -1,4 +1,4 @@
-const CARD_VERSION = "3.13.1";
+const CARD_VERSION = "3.14.0";
 
 // ─── i18n ───────────────────────────────────────────────────────────
 const _mtxLang = () => {
@@ -147,9 +147,9 @@ function mtxThemeVars(isDark, accentHex) {
   return {
     volBgStart: isDark ? `rgba(${rgb}, 0.38)` : `rgba(${rgb}, 0.26)`,
     volBgMid:   isDark ? `rgba(${rgb}, 0.14)` : `rgba(${rgb}, 0.09)`,
-    bg: isDark ? "rgba(30, 33, 40, 0.95)" : "rgba(255, 255, 255, 0.95)",
-    cardBg: isDark ? "rgba(40, 44, 52, 0.8)" : "rgba(245, 247, 250, 0.8)",
-    cardBgHover: isDark ? "rgba(50, 55, 65, 0.9)" : "rgba(235, 238, 245, 0.9)",
+    
+    
+    
     text: isDark ? "#e4e6eb" : "#1a1c20",
     textSec: isDark ? "rgba(228, 230, 235, 0.6)" : "rgba(26, 28, 32, 0.5)",
     accent,
@@ -193,9 +193,11 @@ function mtxBaseStyles(t) {
     :host { display: block; --accent: ${t.accent}; --accent-light: ${t.accentLight}; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     .mtx-card {
-      background: ${t.bg}; border-radius: 25px; padding: 16px;
+      background: var(--ha-card-background, var(--card-background-color, ${t.isDark ? "rgba(30,33,40,0.95)" : "rgba(255,255,255,0.95)"}));
+      border-radius: var(--ha-card-border-radius, 25px); padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: ${t.text}; backdrop-filter: blur(20px); border: 1px solid ${t.border};
+      color: ${t.text}; border: 1px solid var(--ha-card-border-color, ${t.border});
+      box-shadow: var(--ha-card-box-shadow, none);
     }
     .mtx-header {
       display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 0 4px;
@@ -515,10 +517,10 @@ class AudacMTXCard extends HTMLElement {
         ${mtxBaseStyles(t)}
         .zones-container { display: flex; flex-direction: column; gap: 8px; }
         .zone-card {
-          background: ${t.cardBg}; border-radius: 25px; overflow: hidden;
+          background: ${t.isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
         }
-        .zone-card:hover { background: ${t.cardBgHover}; }
+        .zone-card:hover { background: ${t.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)"}; }
         .zone-card.expanded {
           border-color: ${t.isDark ? 'rgba(124,107,240,0.2)' : 'rgba(124,107,240,0.15)'};
           background: ${t.isDark ? 'rgba(45,48,58,0.9)' : 'rgba(240,242,248,0.95)'};
@@ -1260,10 +1262,10 @@ class AudacMTXMoreInfo extends HTMLElement {
         .mtx-card { border: none; border-radius: 0; backdrop-filter: none; }
         .zones-container { display: flex; flex-direction: column; gap: 8px; }
         .zone-card {
-          background: ${t.cardBg}; border-radius: 25px; overflow: hidden;
+          background: ${t.isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"}; border-radius: 25px; overflow: hidden;
           transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1); border: 1px solid transparent;
         }
-        .zone-card:hover { background: ${t.cardBgHover}; }
+        .zone-card:hover { background: ${t.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)"}; }
         .zone-card.expanded {
           border-color: ${t.isDark ? 'rgba(124,107,240,0.2)' : 'rgba(124,107,240,0.15)'};
           background: ${t.isDark ? 'rgba(45,48,58,0.9)' : 'rgba(240,242,248,0.95)'};
