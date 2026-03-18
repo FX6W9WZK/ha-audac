@@ -15,13 +15,19 @@ from .xmp44_client import XMP44Client, MODULE_IMP40
 
 _LOGGER = logging.getLogger(__name__)
 
-# Poll every 30s — XMP44 has fewer commands than MTX per cycle
+# Normal polling interval.
 SCAN_INTERVAL = timedelta(seconds=30)
+
+# Slower polling when device is unreachable — retry every 3 minutes.
+SCAN_INTERVAL_SLOW = timedelta(seconds=180)
 
 # Hard timeout for a complete coordinator update cycle.
 UPDATE_TIMEOUT = 55.0
 
-# Number of consecutive failures before marking entities as unavailable.
+# Number of failures before slowing down the poll interval.
+SLOW_POLL_THRESHOLD = 2
+
+# Number of consecutive failures for plausibility checks.
 MAX_CONSECUTIVE_FAILURES = 3
 
 
@@ -60,6 +66,30 @@ class XMP44Coordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 module_config[slot] = module_type
         self.client.set_module_config(module_config)
 
+    def _on_failure(self) -> None:
+        """Track failure and slow down polling after threshold."""
+        self._consecutive_update_failures += 1
+        if self._consecutive_update_failures > SLOW_POLL_THRESHOLD and self.update_interval != SCAN_INTERVAL_SLOW:
+            self.update_interval = SCAN_INTERVAL_SLOW
+            _LOGGER.warning(
+                "XMP44 unreachable after %d attempts, slowing poll to %ds",
+                self._consecutive_update_failures, int(SCAN_INTERVAL_SLOW.total_seconds()),
+            )
+
+    @property
+    def _should_keep_state(self) -> bool:
+        """True if we still have grace period (<=2 failures) and previous data."""
+        return self.data is not None and self._consecutive_update_failures <= SLOW_POLL_THRESHOLD
+
+    def _on_success(self) -> None:
+        """Reset failure counter and restore normal polling."""
+        if self._consecutive_update_failures > SLOW_POLL_THRESHOLD:
+            _LOGGER.info("XMP44 device recovered after %d failures, restoring normal poll interval",
+                         self._consecutive_update_failures)
+        self._consecutive_update_failures = 0
+        if self.update_interval != SCAN_INTERVAL:
+            self.update_interval = SCAN_INTERVAL
+
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
         try:
             result = await asyncio.wait_for(
@@ -68,13 +98,14 @@ class XMP44Coordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             )
             return result
         except asyncio.TimeoutError:
-            self._consecutive_update_failures += 1
+            self._on_failure()
             _LOGGER.warning(
-                "XMP44 coordinator update timed out after %ss (failure %d/%d)",
-                UPDATE_TIMEOUT, self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES,
+                "XMP44 coordinator timed out after %ss (failure %d), retrying in %ds",
+                UPDATE_TIMEOUT, self._consecutive_update_failures,
+                int(self.update_interval.total_seconds()),
             )
             await self.client.disconnect()
-            if self.data and self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+            if self._should_keep_state:
                 return self.data
             raise UpdateFailed(f"Update timed out after {UPDATE_TIMEOUT}s") from None
 
@@ -87,14 +118,14 @@ class XMP44Coordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
 
             slots = await self.client.get_all_slots()
             if not slots and self.data:
-                self._consecutive_update_failures += 1
-                _LOGGER.debug("No slot data received (failure %d/%d), keeping previous state",
-                              self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES)
-                if self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+                self._on_failure()
+                _LOGGER.debug("No slot data received (failure %d), keeping previous state",
+                              self._consecutive_update_failures)
+                if self._should_keep_state:
                     return self.data
-                raise UpdateFailed("No slot data received from XMP44 after %d attempts" % MAX_CONSECUTIVE_FAILURES)
-            if not slots:
                 raise UpdateFailed("No slot data received from XMP44")
+            if not slots:
+                raise UpdateFailed("No slot data received from XMP44 (first poll)")
 
             # Inject cached favourites into slot data
             for slot_id, slot_data in slots.items():
@@ -107,23 +138,25 @@ class XMP44Coordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                     slot_data.get("status"),
                     slot_data.get("output_gain"),
                 )
-            self._consecutive_update_failures = 0
+            self._on_success()
             return slots
         except ConnectionError as err:
-            self._consecutive_update_failures += 1
-            if self.data and self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
-                _LOGGER.warning("Connection lost to XMP44 (failure %d/%d), keeping previous state: %s",
-                                self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES, err)
+            self._on_failure()
+            _LOGGER.warning("Connection lost to XMP44 (failure %d), retrying in %ds: %s",
+                            self._consecutive_update_failures,
+                            int(self.update_interval.total_seconds()), err)
+            if self._should_keep_state:
                 return self.data
             raise UpdateFailed(f"Connection error: {err}") from err
         except UpdateFailed:
             raise
         except Exception as err:
-            self._consecutive_update_failures += 1
+            self._on_failure()
             await self.client.disconnect()
-            if self.data and self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
-                _LOGGER.warning("XMP44 update error (failure %d/%d), keeping previous state: %s",
-                                self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES, err)
+            _LOGGER.warning("XMP44 update error (failure %d), retrying in %ds: %s",
+                            self._consecutive_update_failures,
+                            int(self.update_interval.total_seconds()), err)
+            if self._should_keep_state:
                 return self.data
             raise UpdateFailed(f"Error communicating with XMP44: {err}") from err
 

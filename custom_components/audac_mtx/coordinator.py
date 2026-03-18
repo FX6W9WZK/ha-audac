@@ -15,20 +15,23 @@ from .mtx_client import MTXClient
 
 _LOGGER = logging.getLogger(__name__)
 
-# Poll every 60 s — gives the MTX device enough time to respond to all
-# zone queries (~20-45 s) before the next cycle starts.
+# Normal polling interval.
 SCAN_INTERVAL = timedelta(seconds=60)
 
+# Slower polling when device is unreachable — retry every 3 minutes.
+SCAN_INTERVAL_SLOW = timedelta(seconds=180)
+
 # Hard timeout for a complete coordinator update cycle.
-# Must be longer than GET_ALL_ZONES_TIMEOUT (45 s) in mtx_client.py.
 UPDATE_TIMEOUT = 55.0
 
 # Tolerance for volume drift before a re-sync command is sent (0–70 raw units).
-# 2 = roughly 3% volume — avoids constant re-syncing due to rounding.
 SYNC_VOLUME_TOLERANCE = 1
 
-# Number of consecutive failures before marking entities as unavailable.
+# Number of consecutive failures before accepting suspicious all-zero data as real.
 MAX_CONSECUTIVE_FAILURES = 3
+
+# Number of failures before slowing down the poll interval.
+SLOW_POLL_THRESHOLD = 2
 
 
 class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
@@ -160,14 +163,37 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 _LOGGER.debug("Sync: zone %d treble %d -> %d (master zone %d)", slave_zone, s_treble, m_treble, master_zone)
                 await self.client.set_treble(slave_zone, m_treble)
 
+    def _on_failure(self) -> None:
+        """Track failure and slow down polling after threshold."""
+        self._consecutive_update_failures += 1
+        if self._consecutive_update_failures > SLOW_POLL_THRESHOLD and self.update_interval != SCAN_INTERVAL_SLOW:
+            self.update_interval = SCAN_INTERVAL_SLOW
+            _LOGGER.warning(
+                "MTX unreachable after %d attempts, slowing poll to %ds",
+                self._consecutive_update_failures, int(SCAN_INTERVAL_SLOW.total_seconds()),
+            )
+
+    @property
+    def _should_keep_state(self) -> bool:
+        """True if we still have grace period (<=2 failures) and previous data."""
+        return self.data is not None and self._consecutive_update_failures <= SLOW_POLL_THRESHOLD
+
+    def _on_success(self) -> None:
+        """Reset failure counter and restore normal polling."""
+        if self._consecutive_update_failures > SLOW_POLL_THRESHOLD:
+            _LOGGER.info("MTX device recovered after %d failures, restoring normal poll interval",
+                         self._consecutive_update_failures)
+        self._consecutive_update_failures = 0
+        if self.update_interval != SCAN_INTERVAL:
+            self.update_interval = SCAN_INTERVAL
+
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
         """Fetch data from the MTX device.
 
-        The UPDATE_TIMEOUT wraps the entire fetch to ensure we never block
-        the HA event loop if the MTX device stops responding.
-
-        Keeps previous state for up to MAX_CONSECUTIVE_FAILURES consecutive
-        failures before marking entities as unavailable.
+        Never raises UpdateFailed if previous data exists — entities always
+        keep their last known state. After SLOW_POLL_THRESHOLD failures,
+        the polling interval is increased to SCAN_INTERVAL_SLOW. On success,
+        it is restored to SCAN_INTERVAL.
         """
         try:
             result = await asyncio.wait_for(
@@ -176,13 +202,14 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             )
             return result
         except asyncio.TimeoutError:
-            self._consecutive_update_failures += 1
+            self._on_failure()
             _LOGGER.warning(
-                "MTX coordinator update timed out after %ss (failure %d/%d)",
-                UPDATE_TIMEOUT, self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES,
+                "MTX coordinator timed out after %ss (failure %d), retrying in %ds",
+                UPDATE_TIMEOUT, self._consecutive_update_failures,
+                int(self.update_interval.total_seconds()),
             )
             await self.client.disconnect()
-            if self.data and self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+            if self._should_keep_state:
                 return self.data
             raise UpdateFailed(f"Update timed out after {UPDATE_TIMEOUT}s") from None
 
@@ -190,38 +217,35 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
         try:
             zones = await self.client.get_all_zones(self._zones_count, previous=self.data)
             if not zones and self.data:
-                self._consecutive_update_failures += 1
-                _LOGGER.debug("No zone data received (failure %d/%d), keeping previous state",
-                              self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES)
-                if self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+                self._on_failure()
+                _LOGGER.debug("No zone data received (failure %d), keeping previous state",
+                              self._consecutive_update_failures)
+                if self._should_keep_state:
                     return self.data
-                raise UpdateFailed("No zone data received from MTX after %d attempts" % MAX_CONSECUTIVE_FAILURES)
-            if not zones:
                 raise UpdateFailed("No zone data received from MTX")
+            if not zones:
+                raise UpdateFailed("No zone data received from MTX (first poll)")
 
             # Check for incomplete response (fewer zones than expected)
             if self.data and len(zones) < self._zones_count and len(self.data) == self._zones_count:
-                self._consecutive_update_failures += 1
+                self._on_failure()
                 _LOGGER.warning(
-                    "MTX returned incomplete data: %d/%d zones (failure %d/%d), keeping previous state",
-                    len(zones), self._zones_count,
-                    self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES,
+                    "MTX returned incomplete data: %d/%d zones (failure %d), keeping previous state",
+                    len(zones), self._zones_count, self._consecutive_update_failures,
                 )
-                if self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
+                if self._should_keep_state:
                     return self.data
+                raise UpdateFailed("Incomplete zone data from MTX")
 
-            # Plausibility check: if we had active zones before, but now ALL zones
-            # suddenly report routing=0, this is likely a communication glitch
-            # (the device returned zeroed data). Keep previous state.
+            # Plausibility check: all zones suddenly routing=0
             if self.data and self._is_suspicious_response(zones):
-                self._consecutive_update_failures += 1
+                self._on_failure()
                 _LOGGER.warning(
-                    "MTX returned suspicious all-zero data (failure %d/%d), keeping previous state",
-                    self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES,
+                    "MTX returned suspicious all-zero data (failure %d), keeping previous state",
+                    self._consecutive_update_failures,
                 )
                 if self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
                     return self.data
-                # After MAX failures, accept the data as real (maybe user actually turned everything off)
                 _LOGGER.info("MTX all-zero data persisted for %d polls, accepting as real state", MAX_CONSECUTIVE_FAILURES)
 
             for zone_id, zone_data in zones.items():
@@ -236,23 +260,25 @@ class AudacMTXCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
                 )
             # Sync slave zones to master after every successful poll
             await self._sync_slave_zones(zones)
-            self._consecutive_update_failures = 0
+            self._on_success()
             return zones
         except ConnectionError as err:
-            self._consecutive_update_failures += 1
-            if self.data and self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
-                _LOGGER.warning("Connection lost to MTX (failure %d/%d), keeping previous state: %s",
-                                self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES, err)
+            self._on_failure()
+            _LOGGER.warning("Connection lost to MTX (failure %d), retrying in %ds: %s",
+                            self._consecutive_update_failures,
+                            int(self.update_interval.total_seconds()), err)
+            if self._should_keep_state:
                 return self.data
             raise UpdateFailed(f"Connection error: {err}") from err
         except UpdateFailed:
             raise
         except Exception as err:
-            self._consecutive_update_failures += 1
+            self._on_failure()
             await self.client.disconnect()
-            if self.data and self._consecutive_update_failures < MAX_CONSECUTIVE_FAILURES:
-                _LOGGER.warning("MTX update error (failure %d/%d), keeping previous state: %s",
-                                self._consecutive_update_failures, MAX_CONSECUTIVE_FAILURES, err)
+            _LOGGER.warning("MTX update error (failure %d), retrying in %ds: %s",
+                            self._consecutive_update_failures,
+                            int(self.update_interval.total_seconds()), err)
+            if self._should_keep_state:
                 return self.data
             raise UpdateFailed(f"Error communicating with MTX: {err}") from err
 

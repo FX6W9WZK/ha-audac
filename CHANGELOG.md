@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.15.0
+- **Refined failure strategy** for both MTX and XMP44 coordinators:
+  - **0–2 failures**: Keep last known state, continue normal polling (60s/30s)
+  - **3+ failures**: Mark entities as `unavailable`, slow polling to 180s (3 min)
+  - **Recovery**: Device responds again → immediately restore normal polling, reset counter
+- Single command timeout reduced to 5s (was 25s) — fail fast on hung connections
+- Overall timeouts restored to safe values (GET_ALL_ZONES 45s, UPDATE 55s)
+
 ## 3.14.3
 - **Fix: persistent unavailable state** — Single command timeout reduced from 25s to 5s
 - A hung TCP command now frees the lock in 5s instead of 25s, preventing cascading timeouts
