@@ -6,6 +6,9 @@
     "http",
     "lovelace"
   ],
+  "categories": [
+    "media_entertainment.speakers_audio"
+  ],
   "codeowners": [
     "@FX6W9WZK"
   ],
@@ -16,5 +19,5 @@
   "issue_tracker": "https://github.com/FX6W9WZK/ha-audac/issues",
   "quality_scale": "silver",
   "requirements": [],
-  "version": "3.21.0"
+  "version": "3.21.1"
 }

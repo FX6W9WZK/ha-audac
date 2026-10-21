@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -144,9 +145,9 @@ class BMP40ConnectedDeviceSensor(CoordinatorEntity, SensorEntity):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_bmp40_slot{slot}_connected_device"
         self._attr_translation_key = "connected_device"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._extra_slot = slot
 
     @property
@@ -196,9 +197,9 @@ class BMP40PairingStateSensor(CoordinatorEntity, SensorEntity):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_bmp40_slot{slot}_pairing_state"
         self._attr_translation_key = "pairing_state"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._extra_slot = slot
 
     @property
@@ -228,9 +229,9 @@ class NMP40PlayerNameSensor(CoordinatorEntity, SensorEntity):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_nmp40_slot{slot}_player_name"
         self._attr_translation_key = "player_name"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._extra_slot = slot
 
     @property
@@ -253,9 +254,9 @@ class NMP40IPAddressSensor(CoordinatorEntity, SensorEntity):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_nmp40_slot{slot}_ip"
         self._attr_translation_key = "ip_address"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._extra_slot = slot
 
     @property
@@ -284,9 +285,9 @@ class TunerFrequencySensor(CoordinatorEntity, SensorEntity):
         self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_frequency"
         self._attr_translation_key = "frequency"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
 
     @property
     def native_value(self) -> float | None:
@@ -312,9 +313,9 @@ class TunerProgramNameSensor(CoordinatorEntity, SensorEntity):
         self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_program"
         self._attr_translation_key = "program_name"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
 
     @property
     def native_value(self) -> str | None:
@@ -339,9 +340,9 @@ class TunerSignalStrengthSensor(CoordinatorEntity, SensorEntity):
         self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_signal"
         self._attr_translation_key = "signal_strength"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
 
     @property
     def native_value(self) -> int | None:
@@ -364,9 +365,9 @@ class TunerBandSensor(CoordinatorEntity, SensorEntity):
         self._attr_extra_state_attributes = {"slot_number": slot}
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_band"
         self._attr_translation_key = "band"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
 
     @property
     def native_value(self) -> str | None:

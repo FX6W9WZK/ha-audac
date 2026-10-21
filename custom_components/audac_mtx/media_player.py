@@ -11,6 +11,7 @@ from homeassistant.components.media_player import (
     MediaPlayerState,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -274,16 +275,17 @@ class AudacXMP44Slot(CoordinatorEntity, MediaPlayerEntity):
         self._attr_name = None
 
         # Each module gets its own device, linked to the XMP44 hub
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-            "name": custom_name or f"{self._module_name} (Slot {slot})",
-            "manufacturer": "Audac",
-            "model": self._module_name,
-            "sw_version": initial_data.get("module_version", ""),
-            "via_device_id": hub_device_id,
-        }
+        model = self._module_name
         if module_desc:
-            self._attr_device_info["model"] = f"{self._module_name} – {module_desc}"
+            model = f"{self._module_name} – {module_desc}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+            name=custom_name or f"{self._module_name} (Slot {slot})",
+            manufacturer="Audac",
+            model=model,
+            sw_version=initial_data.get("module_version", ""),
+            via_device_id=hub_device_id,
+        )
 
         # Build supported features based on module type
         features = MediaPlayerEntityFeature(0)

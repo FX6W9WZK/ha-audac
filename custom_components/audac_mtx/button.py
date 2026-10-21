@@ -7,6 +7,7 @@ from typing import Any
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -233,9 +234,9 @@ class FMP40TriggerStartButton(AudacButtonBase):
 
         self._attr_unique_id = f"{entry.entry_id}_fmp40_slot{slot}_trigger{trigger}_start"
         self._attr_name = trigger_name
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot, "trigger_number": trigger}
 
     async def async_press(self) -> None:
@@ -265,9 +266,9 @@ class FMP40TriggerStopButton(AudacButtonBase):
         self._attr_unique_id = f"{entry.entry_id}_fmp40_slot{slot}_trigger{trigger}_stop"
         self._attr_translation_key = "fmp40_trigger_stop"
         self._attr_translation_placeholders = {"trigger_name": trigger_name}
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot, "trigger_number": trigger}
 
     async def async_press(self) -> None:
@@ -307,9 +308,9 @@ class IMP40StationButton(AudacButtonBase):
         safe_name = "".join(c if c.isalnum() else "_" for c in station_name.lower()).strip("_")
         self._attr_unique_id = f"{entry.entry_id}_imp40_slot{slot}_station_{pointer}_{safe_name}"
         self._attr_name = station_name
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot, "station_pointer": self._pointer}
 
     async def async_press(self) -> None:
@@ -340,9 +341,9 @@ class BMP40DisconnectButton(AudacButtonBase):
 
         self._attr_unique_id = f"{entry.entry_id}_bmp40_slot{slot}_disconnect"
         self._attr_translation_key = "disconnect"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
@@ -364,7 +365,7 @@ class TunerSearchUpButton(AudacButtonBase):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_search_up"
         self._attr_translation_key = "search_up"
-        self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")})
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
@@ -381,7 +382,7 @@ class TunerSearchDownButton(AudacButtonBase):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_search_down"
         self._attr_translation_key = "search_down"
-        self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")})
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
@@ -399,7 +400,7 @@ class TunerBandSwitchButton(AudacButtonBase):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_band_switch"
         self._attr_translation_key = "band_switch"
-        self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")})
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     async def async_press(self) -> None:
@@ -418,7 +419,7 @@ class TunerPresetButton(AudacButtonBase):
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_preset_{preset}"
         self._attr_translation_key = "preset"
         self._attr_translation_placeholders = {"preset": str(preset)}
-        self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")})
         self._attr_extra_state_attributes = {"slot_number": slot, "preset_number": preset}
 
     async def async_press(self) -> None:
@@ -441,7 +442,7 @@ def _mmp40_button(icon, uid_suffix, method_name):
             super().__init__(coordinator)
             self._slot = slot
             self._attr_unique_id = f"{entry.entry_id}_mmp40_slot{slot}_{uid_suffix}"
-            self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+            self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")})
             self._attr_extra_state_attributes = {"slot_number": slot}
 
         async def async_press(self):
@@ -472,7 +473,7 @@ def _mmp40_arg_button(icon, uid_suffix, method_name, arg):
             super().__init__(coordinator)
             self._slot = slot
             self._attr_unique_id = f"{entry.entry_id}_mmp40_slot{slot}_{uid_suffix}"
-            self._attr_device_info = {"identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")}}
+            self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")})
             self._attr_extra_state_attributes = {"slot_number": slot}
 
         async def async_press(self):
@@ -506,12 +507,12 @@ class MTXSaveButton(AudacButtonBase):
         self._attr_translation_key = "save_settings"
         from .const import MODEL_NAMES, CONF_MODEL, MODEL_MTX88
         model = entry.data.get(CONF_MODEL, MODEL_MTX88)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.data.get("name", "Audac MTX"),
-            "manufacturer": "Audac",
-            "model": MODEL_NAMES.get(model, "MTX"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.data.get("name", "Audac MTX"),
+            manufacturer="Audac",
+            model=MODEL_NAMES.get(model, "MTX"),
+        )
 
     async def async_press(self) -> None:
         await execute_device_command(self.coordinator.client.save(), "save")
@@ -532,12 +533,12 @@ class MTXVolumeUpButton(AudacButtonBase):
         self._attr_translation_placeholders = {"zone_name": zone_name}
         from .const import MODEL_NAMES, CONF_MODEL, MODEL_MTX88
         model = entry.data.get(CONF_MODEL, MODEL_MTX88)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.data.get("name", "Audac MTX"),
-            "manufacturer": "Audac",
-            "model": MODEL_NAMES.get(model, "MTX"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.data.get("name", "Audac MTX"),
+            manufacturer="Audac",
+            model=MODEL_NAMES.get(model, "MTX"),
+        )
 
     async def async_press(self) -> None:
         await execute_device_command(self.coordinator.client.set_volume_up(self._zone), "set_volume_up")
@@ -559,12 +560,12 @@ class MTXVolumeDownButton(AudacButtonBase):
         self._attr_translation_placeholders = {"zone_name": zone_name}
         from .const import MODEL_NAMES, CONF_MODEL, MODEL_MTX88
         model = entry.data.get(CONF_MODEL, MODEL_MTX88)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.data.get("name", "Audac MTX"),
-            "manufacturer": "Audac",
-            "model": MODEL_NAMES.get(model, "MTX"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.data.get("name", "Audac MTX"),
+            manufacturer="Audac",
+            model=MODEL_NAMES.get(model, "MTX"),
+        )
 
     async def async_press(self) -> None:
         await execute_device_command(self.coordinator.client.set_volume_down(self._zone), "set_volume_down")

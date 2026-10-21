@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -124,9 +125,9 @@ class BMP40PairingSwitch(CoordinatorEntity, SwitchEntity):
 
         self._attr_unique_id = f"{entry.entry_id}_bmp40_slot{slot}_pairing"
         self._attr_translation_key = "pairing"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     @property
@@ -165,9 +166,9 @@ class TunerStereoSwitch(CoordinatorEntity, SwitchEntity):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_tuner_slot{slot}_stereo"
         self._attr_translation_key = "stereo"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     @property
@@ -201,9 +202,9 @@ class MMP40RecorderModeSwitch(CoordinatorEntity, SwitchEntity):
         self._slot = slot
         self._attr_unique_id = f"{entry.entry_id}_mmp40_slot{slot}_recorder"
         self._attr_translation_key = "recorder_mode"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_slot_{slot}")},
+        )
         self._attr_extra_state_attributes = {"slot_number": slot}
 
     @property

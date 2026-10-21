@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.21.1
+- Verified against HA 2026.10.2 (all 267 tests green)
+- Build all device info as `DeviceInfo(...)` objects instead of plain dicts, preparing for the HA 2026.11 dataclass change (27 call sites)
+- Declare the new manifest `categories` key (`media_entertainment.speakers_audio`)
+
 ## 3.21.0
 - **Quality scale: silver**
   - Test suite grown from 10 to 267 tests: TCP clients (wire-format checks against the AUDAC protocol reference), coordinators, every entity platform, setup/unload, helpers — 99% total coverage, enforced in CI (fail-under 95%)

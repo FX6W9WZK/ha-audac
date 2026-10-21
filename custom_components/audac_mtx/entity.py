@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_MODEL, MODEL_MTX88, MODEL_NAMES
@@ -18,12 +19,12 @@ class AudacMTXBaseEntity(CoordinatorEntity[AudacMTXCoordinator]):
         self._zone = zone
         self._entry = entry
         model = entry.data.get(CONF_MODEL, MODEL_MTX88)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.data.get("name", "Audac MTX"),
-            "manufacturer": "Audac",
-            "model": MODEL_NAMES.get(model, "MTX"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.data.get("name", "Audac MTX"),
+            manufacturer="Audac",
+            model=MODEL_NAMES.get(model, "MTX"),
+        )
 
     @property
     def _zone_data(self) -> dict[str, Any]:
