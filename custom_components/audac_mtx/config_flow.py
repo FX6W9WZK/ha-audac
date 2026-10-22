@@ -7,6 +7,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.data_entry_flow import section
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers import selector
 
@@ -94,26 +95,99 @@ class AudacMTXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return AudacMTXOptionsFlow()
 
 
+def _flatten_options_input(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Flatten section dicts back into the flat option keys used in storage."""
+    flat: dict[str, Any] = {}
+    for key, value in user_input.items():
+        if isinstance(value, dict):
+            if key == "sources":
+                flat.update(value)
+            else:
+                for sub_key, sub_value in value.items():
+                    flat[f"{key}_{sub_key}"] = sub_value
+        else:
+            flat[key] = value
+    return flat
+
+
+def _validate_option_names(flat: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    """Strip strings, coerce trigger counts, reject empty names."""
+    validated: dict[str, Any] = {}
+    for key, value in flat.items():
+        if isinstance(value, str):
+            value = value.strip()
+            if key.endswith("_name") and not value:
+                return validated, {"base": "empty_name"}
+        if key.endswith("_triggers"):
+            try:
+                value = int(value)
+            except (ValueError, TypeError):
+                value = 0
+        validated[key] = value
+    return validated, {}
+
+
 class AudacMTXOptionsFlow(config_entries.OptionsFlowWithReload):
+    def __init__(self) -> None:
+        self._pending: dict[str, Any] = {}
+        self._new_triggers: list[tuple[int, int]] = []
+
+    def _slots_count(self) -> int:
+        model = self.config_entry.data.get(CONF_MODEL, MODEL_MTX88)
+        return self.config_entry.data.get("slots", MODEL_SLOTS.get(model, 4))
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            validated = {}
-            for key, value in user_input.items():
-                if isinstance(value, str):
-                    value = value.strip()
-                    if key.endswith("_name") and not value:
-                        errors["base"] = "empty_name"
-                        break
-                validated[key] = value
+            flat = _flatten_options_input(user_input)
+            validated, errors = _validate_option_names(flat)
 
             if not errors:
+                # Freshly added FMP40 triggers get their name fields in a
+                # dedicated second step instead of requiring a reopen.
+                self._new_triggers = [
+                    (slot, trigger)
+                    for slot in range(1, self._slots_count() + 1)
+                    if validated.get(f"slot_{slot}_module") == "6"
+                    for trigger in range(1, validated.get(f"slot_{slot}_triggers", 0) + 1)
+                    if f"slot_{slot}_trigger_{trigger}_name" not in validated
+                ]
+                if self._new_triggers:
+                    self._pending = validated
+                    return await self.async_step_triggers()
                 return self.async_create_entry(title="", data=validated)
 
         return await self._show_options_form(errors)
+
+    async def async_step_triggers(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Name the triggers that were just added in the first step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            validated, errors = _validate_option_names(user_input)
+            if not errors:
+                self._pending.update(validated)
+                return self.async_create_entry(title="", data=self._pending)
+
+        schema_dict: dict = {}
+        for slot, trigger in self._new_triggers:
+            schema_dict[
+                vol.Optional(f"slot_{slot}_trigger_{trigger}_name", default=f"Trigger {trigger}")
+            ] = str
+            schema_dict[
+                vol.Optional(f"slot_{slot}_trigger_{trigger}_stop", default=False)
+            ] = bool
+
+        return self.async_show_form(
+            step_id="triggers",
+            data_schema=vol.Schema(schema_dict),
+            errors=errors,
+        )
 
     async def _show_options_form(
         self,
@@ -122,11 +196,12 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlowWithReload):
         model = self.config_entry.data.get(CONF_MODEL, MODEL_MTX88)
         current_options = self.config_entry.options
 
-        schema_dict = {}
+        schema_dict: dict = {}
 
         if is_xmp_model(model):
-            # XMP44: Module selection, slot names and visibility
-            slots_count = self.config_entry.data.get("slots", MODEL_SLOTS.get(model, 4))
+            # XMP44: one section per slot with module, name, visibility and
+            # (for FMP40) trigger configuration.
+            slots_count = self._slots_count()
 
             module_options = [
                 selector.SelectOptionDict(value="0", label="Kein Modul"),
@@ -143,45 +218,47 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlowWithReload):
                 default_module = current_options.get(f"slot_{i}_module", "0")
                 if isinstance(default_module, int):
                     default_module = str(default_module)
-                schema_dict[vol.Optional(f"slot_{i}_module", default=default_module)] = selector.SelectSelector(
+
+                slot_schema: dict = {}
+                slot_schema[vol.Optional("module", default=default_module)] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=module_options,
                         multiple=False,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
-                default_name = current_options.get(f"slot_{i}_name", f"Slot {i}")
-                schema_dict[vol.Optional(f"slot_{i}_name", default=default_name)] = str
-                default_visible = current_options.get(f"slot_{i}_visible", True)
-                schema_dict[vol.Optional(f"slot_{i}_visible", default=default_visible)] = bool
+                slot_schema[vol.Optional("name", default=current_options.get(f"slot_{i}_name", f"Slot {i}"))] = str
+                slot_schema[vol.Optional("visible", default=current_options.get(f"slot_{i}_visible", True))] = bool
 
-                # FMP40-specific: trigger count and individual trigger names
+                # FMP40-specific: trigger count, names and per-trigger stop button
                 if default_module == "6":
                     default_triggers = current_options.get(f"slot_{i}_triggers", 0)
-                    schema_dict[vol.Optional(f"slot_{i}_triggers", default=default_triggers)] = selector.NumberSelector(
+                    slot_schema[vol.Optional("triggers", default=default_triggers)] = selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0, max=50, step=1, mode=selector.NumberSelectorMode.BOX,
                         )
                     )
-                    # Individual name field per trigger (based on saved trigger count)
                     try:
                         saved_triggers = int(current_options.get(f"slot_{i}_triggers", 0))
                     except (ValueError, TypeError):
                         saved_triggers = 0
                     for t in range(1, saved_triggers + 1):
-                        default_tname = current_options.get(f"slot_{i}_trigger_{t}_name", f"Trigger {t}")
-                        schema_dict[vol.Optional(f"slot_{i}_trigger_{t}_name", default=default_tname)] = str
+                        slot_schema[
+                            vol.Optional(f"trigger_{t}_name", default=current_options.get(f"slot_{i}_trigger_{t}_name", f"Trigger {t}"))
+                        ] = str
+                        slot_schema[
+                            vol.Optional(f"trigger_{t}_stop", default=current_options.get(f"slot_{i}_trigger_{t}_stop", False))
+                        ] = bool
+
+                schema_dict[vol.Required(f"slot_{i}")] = section(
+                    vol.Schema(slot_schema),
+                    {"collapsed": default_module == "0"},
+                )
         else:
-            # MTX: Zone names, visibility, coupling, and source configuration
+            # MTX: one section per zone plus a sources section.
             zones_count = MODEL_ZONES.get(model, 8)
 
             for i in range(1, zones_count + 1):
-                default_name = current_options.get(f"zone_{i}_name", f"Zone {i}")
-                schema_dict[vol.Optional(f"zone_{i}_name", default=default_name)] = str
-                default_visible = current_options.get(f"zone_{i}_visible", True)
-                schema_dict[vol.Optional(f"zone_{i}_visible", default=default_visible)] = bool
-
-                # Kopplung als Dropdown (eine Slave-Zone kann nur einen Master haben)
                 old_links = current_options.get(f"zone_{i}_links")
                 if isinstance(old_links, list) and len(old_links) > 0:
                     migration_default = str(old_links[0])
@@ -201,20 +278,35 @@ class AudacMTXOptionsFlow(config_entries.OptionsFlowWithReload):
                     )
                     for j in range(1, zones_count + 1) if j != i
                 ]
-                schema_dict[vol.Optional(f"zone_{i}_link", default=default_link)] = selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=coupling_options,
-                        multiple=False,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
+
+                zone_schema: dict = {
+                    vol.Optional("name", default=current_options.get(f"zone_{i}_name", f"Zone {i}")): str,
+                    vol.Optional("visible", default=current_options.get(f"zone_{i}_visible", True)): bool,
+                    vol.Optional("link", default=default_link): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=coupling_options,
+                            multiple=False,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+                schema_dict[vol.Required(f"zone_{i}")] = section(
+                    vol.Schema(zone_schema),
+                    {"collapsed": True},
                 )
 
+            source_schema: dict = {}
             for input_id, default_label in INPUT_NAMES.items():
-                current_label = current_options.get(f"source_{input_id}_name", default_label)
-                schema_dict[vol.Optional(f"source_{input_id}_name", default=current_label)] = str
+                source_schema[
+                    vol.Optional(f"source_{input_id}_name", default=current_options.get(f"source_{input_id}_name", default_label))
+                ] = str
                 default_visible = input_id != 0
                 default_visible = current_options.get(f"source_{input_id}_visible", default_visible)
-                schema_dict[vol.Optional(f"source_{input_id}_visible", default=default_visible)] = bool
+                source_schema[vol.Optional(f"source_{input_id}_visible", default=default_visible)] = bool
+            schema_dict[vol.Required("sources")] = section(
+                vol.Schema(source_schema),
+                {"collapsed": True},
+            )
 
         return self.async_show_form(
             step_id="init",

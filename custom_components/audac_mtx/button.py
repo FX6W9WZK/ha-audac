@@ -190,7 +190,10 @@ def _setup_fmp40_buttons(
     for trigger in range(1, trigger_count + 1):
         trigger_name = entry.options.get(f"slot_{slot}_trigger_{trigger}_name", f"Trigger {trigger}")
         entities.append(FMP40TriggerStartButton(coordinator, entry, slot, trigger, trigger_name))
-        entities.append(FMP40TriggerStopButton(coordinator, entry, slot, trigger, trigger_name))
+        # Stop buttons are opt-in per trigger: they are only useful for
+        # voice files that play as an endless loop.
+        if entry.options.get(f"slot_{slot}_trigger_{trigger}_stop", False):
+            entities.append(FMP40TriggerStopButton(coordinator, entry, slot, trigger, trigger_name))
 
 
 def _setup_imp40_buttons(

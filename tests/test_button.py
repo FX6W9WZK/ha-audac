@@ -145,6 +145,7 @@ XMP_OPTIONS = {
     "slot_1_module": "6",
     "slot_1_triggers": 2,
     "slot_1_trigger_1_name": "Durchsage",
+    "slot_1_trigger_1_stop": True,
     "slot_2_module": "4",
     "slot_3_module": "1",
     "slot_4_module": "3",
@@ -211,6 +212,10 @@ async def test_fmp40_trigger_buttons(hass: HomeAssistant) -> None:
 
     await press(hass, eid(hass, entry, "_fmp40_slot1_trigger2_start"))
     client.trigger_start.assert_any_await(1, 2)
+
+    # Stop buttons are opt-in per trigger (endless loops only):
+    # trigger 2 has no stop option set, so no stop button exists.
+    assert eid(hass, entry, "_fmp40_slot1_trigger2_stop") is None
 
     assert eid(hass, entry, "_fmp40_slot1_trigger3_start") is None
 

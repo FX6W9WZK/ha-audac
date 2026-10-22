@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.22.0
+- **Optionen-Dialog neu strukturiert**: Jede Zone bzw. jeder Slot ist jetzt eine eigene auf-/zuklappbare Sektion — saubere visuelle Trennung statt einer langen Feldliste (gespeichertes Optionsformat unveraendert)
+- **Neue Trigger ohne Dialog-Neustart**: Wird die Trigger-Anzahl eines FMP40 erhoeht, fragt ein zweiter Schritt direkt die Namen der neuen Trigger ab — kein Speichern-und-neu-oeffnen mehr
+- **Stop-Buttons pro Trigger opt-in**: Neue Option "Stop-Button anzeigen" je Trigger; noetig nur fuer Ansagen in Endlosschleife. ACHTUNG: Bestehende Stop-Buttons verschwinden, bis die Option fuer den jeweiligen Trigger gesetzt wird
+- Uebersetzungen (de/en) fuer alle neuen Sektionen und Felder
+
 ## 3.21.1
 - Verified against HA 2026.10.2 (all 267 tests green)
 - Build all device info as `DeviceInfo(...)` objects instead of plain dicts, preparing for the HA 2026.11 dataclass change (27 call sites)
