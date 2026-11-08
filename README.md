@@ -1,12 +1,12 @@
 # Audac for Home Assistant
 
-[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![Marketplace](https://img.shields.io/badge/HA_Marketplace-Catalog-41BDF5.svg?style=flat-square)](https://www.home-assistant.io/integrations/marketplace/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/Version-3.22.0-green.svg?style=flat-square)](https://github.com/FX6W9WZK/ha-audac/releases/latest)
 [![Quality Scale](https://img.shields.io/badge/Quality_Scale-Silver-c0c0c0.svg)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
 [![Built with Claude AI](https://img.shields.io/badge/Built%20with-Claude%20AI-c4956b.svg?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMTcyLjEgNjUuOEwxMDQuMiAxOTAuMiA4My44IDE4My4xbDY3LjktMTI0LjQgMjAuNCAxMi4xek0xNTYuNSAxNzIuMWwtNTEuOC0yMi42IDguNS0xOS41IDUxLjggMjIuNi04LjUgMTkuNXoiIGZpbGw9IiNjNDk1NmIiLz48L3N2Zz4=)](https://www.anthropic.com/claude)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=FX6W9WZK&repository=ha-audac&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=FX6W9WZK&repository=ha-audac&category=integration)
 
 Home Assistant integration for controlling **[Audac](https://audac.eu)** audio devices:
 - **MTX48 / MTX88** – Audio matrix (zone control)
@@ -52,17 +52,19 @@ Communicates directly via TCP with the devices and ships with Bubble Card-inspir
 
 ## Requirements
 
-- Home Assistant 2023.9.0 or newer
-- [HACS](https://hacs.xyz/) (recommended)
+- Home Assistant 2026.8.0 or newer
+- Home Assistant 2026.11+ with the built-in Marketplace (recommended)
 - Audac MTX48, MTX88, or XMP44 reachable on the network (TCP port 5001)
 
 ---
 
 ## Installation
 
-### Via HACS (recommended)
+### Via the Marketplace (recommended)
 
-1. Open HACS in Home Assistant
+Audac is part of the Marketplace catalog (Home Assistant 2026.11+; on older versions use HACS):
+
+1. Open **Settings → Marketplace** in Home Assistant
 2. Search for **Audac** in Integrations
 3. Install **Audac**
 4. Restart Home Assistant
@@ -146,7 +148,7 @@ The XMP44 card automatically detects all configured modules and shows per slot:
 2. Open the three-dot menu of the config entry and choose **Delete**
 3. Restart Home Assistant
 
-All devices and entities created by the integration are removed automatically. To also remove the files, uninstall the integration in HACS afterwards.
+All devices and entities created by the integration are removed automatically. To also remove the files, uninstall the repository in the Marketplace afterwards.
 
 
 ## Services
