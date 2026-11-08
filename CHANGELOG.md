@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.22.1
+- Marketplace release: README updated for the built-in Home Assistant Marketplace (replaces HACS since HA 2026.11), manifest `categories` key added
+- Verified against HA 2026.11.0 (full test suite green) — no functional changes
+
 ## 3.22.0
 - **Optionen-Dialog neu strukturiert**: Jede Zone bzw. jeder Slot ist jetzt eine eigene auf-/zuklappbare Sektion — saubere visuelle Trennung statt einer langen Feldliste (gespeichertes Optionsformat unveraendert)
 - **Neue Trigger ohne Dialog-Neustart**: Wird die Trigger-Anzahl eines FMP40 erhoeht, fragt ein zweiter Schritt direkt die Namen der neuen Trigger ab — kein Speichern-und-neu-oeffnen mehr
