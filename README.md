@@ -62,7 +62,7 @@ Communicates directly via TCP with the devices and ships with Bubble Card-inspir
 
 ### Via the Marketplace (recommended)
 
-Audac is part of the Marketplace catalog (Home Assistant 2026.11+; on older versions use HACS):
+Audac is part of the Marketplace catalog (Home Assistant 2026.11+):
 
 1. Open **Settings → Marketplace** in Home Assistant
 2. Search for **Audac** in Integrations
